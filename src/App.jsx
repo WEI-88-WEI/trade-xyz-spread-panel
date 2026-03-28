@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { PANEL_CONFIG } from './config';
-import { loadHistory, saveHistory, updateHourlyHistory } from './history';
+import { getRecentAverageThreshold, loadHistory, saveHistory, updateHourlyHistory } from './history';
 import { fmtHour, fmtPrice, fmtTime } from './utils';
 import { createPanelWebSocket } from './ws';
 
@@ -63,12 +63,12 @@ export default function App() {
   useEffect(() => {
     const spread = snapshot?.spreads?.shortBrentLongCl;
     if (spread == null) return;
-    const crossed = spread > PANEL_CONFIG.alertThreshold;
+    const crossed = spread > alertThreshold;
     if (crossed && !alertedRef.current) {
       alertedRef.current = true;
       if (alertEnabled) {
         new Notification('价差提醒', {
-          body: `BRENTOIL 做空现价 - CL 做多现价 = ${spread.toFixed(3)}，已超过阈值 ${PANEL_CONFIG.alertThreshold}`,
+          body: `BRENTOIL 做空现价 - CL 做多现价 = ${spread.toFixed(3)}，已超过阈值 ${alertThreshold.toFixed(3)}`,
         });
       }
       try {
@@ -88,13 +88,15 @@ export default function App() {
       } catch {}
     }
     if (!crossed) alertedRef.current = false;
-  }, [snapshot, alertEnabled]);
+  }, [snapshot, alertEnabled, alertThreshold]);
 
   const chartData = useMemo(
     () => history.map((item) => ({ ...item, hour: fmtHour(item.bucket) })),
     [history]
   );
 
+  const dynamicThreshold = useMemo(() => getRecentAverageThreshold(history, 3), [history]);
+  const alertThreshold = dynamicThreshold ?? 6;
   const latest = snapshot?.spreads ?? {};
   const wsBadge = wsStatus === 'connected' ? 'WS 实时' : wsStatus === 'connecting' ? 'WS 连接中' : 'WS 重连中';
 
@@ -110,7 +112,7 @@ export default function App() {
         </div>
         <div className="hero-meta">
           <div>模式：{wsBadge}</div>
-          <div>提醒阈值：{PANEL_CONFIG.alertThreshold}</div>
+          <div>提醒阈值：{fmtPrice(alertThreshold)}（前3小时均值）</div>
           <div>历史窗口：{PANEL_CONFIG.historyHours} 小时</div>
           <div>最后更新：{fmtTime(snapshot?.ts)}</div>
         </div>
@@ -123,7 +125,7 @@ export default function App() {
           title="BRENTOIL 做空现价 - CL 做多现价"
           value={fmtPrice(latest.shortBrentLongCl)}
           hint="= BRENTOIL bid - CL ask"
-          highlight={latest.shortBrentLongCl > PANEL_CONFIG.alertThreshold}
+          highlight={latest.shortBrentLongCl > alertThreshold}
         />
         <StatCard
           title="BRENTOIL 做多现价 - CL 做空现价"
@@ -159,7 +161,7 @@ export default function App() {
         <div className="card">
           <h2>提醒逻辑</h2>
           <ul className="list">
-            <li>条件：BRENTOIL 的做空现价减去 CL 的做多现价 &gt; config.alertThreshold</li>
+            <li>条件：BRENTOIL 的做空现价减去 CL 的做多现价 &gt; 最近 3 小时均值</li>
             <li>现价定义：做空现价取 bid，做多现价取 ask</li>
             <li>仅使用 WebSocket；若连接中断，页面会持续自动重连</li>
           </ul>

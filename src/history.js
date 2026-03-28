@@ -49,3 +49,15 @@ export function updateHourlyHistory(history, snapshot) {
     .filter((item) => now - item.bucket <= maxAgeMs)
     .sort((a, b) => a.bucket - b.bucket);
 }
+
+export function getRecentAverageThreshold(history, hours = 3) {
+  if (!Array.isArray(history) || history.length === 0) return null;
+  const recent = [...history]
+    .filter((item) => item?.value != null)
+    .sort((a, b) => b.bucket - a.bucket)
+    .slice(0, hours);
+
+  if (recent.length === 0) return null;
+  const sum = recent.reduce((acc, item) => acc + Number(item.value), 0);
+  return sum / recent.length;
+}
