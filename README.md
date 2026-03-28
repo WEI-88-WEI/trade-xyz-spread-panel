@@ -15,7 +15,8 @@
    - 记录格式为：`该小时的某个时刻 -> 差价值`
 4. 使用 WebSocket：
    - 本地后端通过 Hyperliquid WebSocket 订阅 `xyz:BRENTOIL` 和 `xyz:CL`
-   - 前端默认连接 `ws://localhost:8788`
+   - 前端默认连接当前页面同域名下的 `/ws`
+   - 健康检查接口为同域名下的 `/health`
    - 若 WS 不可用，自动回退到 HTTP 轮询
 5. 支持打包：`npm run build`
 6. 构建后产物在 `dist/`，可直接静态部署使用
@@ -72,5 +73,5 @@ dist/
 - 数据源：Hyperliquid HTTP + WebSocket
 - 品种：`xyz:BRENTOIL` 与 `xyz:CL`
 - 前端打包产物在 `dist/`，历史存储在浏览器 `localStorage`
-- 实时模式需要本地启动 `npm run server`，默认对浏览器暴露 `ws://localhost:8788`
+- 实时模式需要本地启动 `npm run server`，部署时建议由反向代理把同域名下的 `/ws` 转发到本地 WebSocket 服务、把 `/health` 转发到后端健康检查接口
 - 提醒使用浏览器 Notification API，因此首次打开需要授权通知权限
