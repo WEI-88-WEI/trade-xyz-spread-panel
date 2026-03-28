@@ -60,6 +60,14 @@ export default function App() {
     };
   }, []);
 
+  const chartData = useMemo(
+    () => history.map((item) => ({ ...item, hour: fmtHour(item.bucket) })),
+    [history]
+  );
+
+  const dynamicThreshold = useMemo(() => getRecentAverageThreshold(history, 3), [history]);
+  const alertThreshold = dynamicThreshold ?? 6;
+
   useEffect(() => {
     const spread = snapshot?.spreads?.shortBrentLongCl;
     if (spread == null) return;
@@ -89,14 +97,6 @@ export default function App() {
     }
     if (!crossed) alertedRef.current = false;
   }, [snapshot, alertEnabled, alertThreshold]);
-
-  const chartData = useMemo(
-    () => history.map((item) => ({ ...item, hour: fmtHour(item.bucket) })),
-    [history]
-  );
-
-  const dynamicThreshold = useMemo(() => getRecentAverageThreshold(history, 3), [history]);
-  const alertThreshold = dynamicThreshold ?? 6;
   const latest = snapshot?.spreads ?? {};
   const wsBadge = wsStatus === 'connected' ? 'WS 实时' : wsStatus === 'connecting' ? 'WS 连接中' : 'WS 重连中';
 
