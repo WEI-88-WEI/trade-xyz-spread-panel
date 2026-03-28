@@ -51,7 +51,7 @@ export default function App() {
     });
 
     const fallbackId = setInterval(async () => {
-      if (wsStatus === 'connected') return;
+      if (wsStatus === 'connected' || wsStatus === 'connecting') return;
       try {
         const next = await fetchSpreadSnapshot();
         setSnapshot(next);
@@ -73,7 +73,7 @@ export default function App() {
       stop();
       clearInterval(fallbackId);
     };
-  }, [wsStatus]);
+  }, []);
 
   useEffect(() => {
     const spread = snapshot?.spreads?.shortBrentLongCl;
