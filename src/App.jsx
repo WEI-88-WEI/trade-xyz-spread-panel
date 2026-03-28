@@ -61,7 +61,12 @@ export default function App() {
   }, []);
 
   const chartData = useMemo(
-    () => history.map((item) => ({ ...item, hour: fmtHour(item.bucket) })),
+    () => history.map((item) => ({
+      ...item,
+      hour: fmtHour(item.bucket),
+      maxValue: item.maxValue ?? item.value,
+      minValue: item.minValue ?? item.value,
+    })),
     [history]
   );
 
@@ -107,7 +112,7 @@ export default function App() {
           <div className="eyebrow">Hyperliquid xyz 面板</div>
           <h1>BRENTOIL / CL 价差监控</h1>
           <p>
-            仅通过后端 WebSocket 实时推送，并按小时记录近一个月内「该小时出现过的最大价差」。
+            仅通过后端 WebSocket 实时推送，并按小时记录近一个月内「该小时出现过的最大价差 / 最小价差」。
           </p>
         </div>
         <div className="hero-meta">
@@ -170,8 +175,8 @@ export default function App() {
 
       <section className="card chart-card">
         <div className="chart-head">
-          <h2>近一个月小时级最大价差</h2>
-          <span>记录维度：每小时保留该小时出现过的最大「BRENTOIL bid - CL ask」</span>
+          <h2>近一个月小时级最大 / 最小价差</h2>
+          <span>记录维度：每小时保留该小时出现过的最大 / 最小「BRENTOIL bid - CL ask」</span>
         </div>
         <div className="chart-wrap">
           <ResponsiveContainer width="100%" height={320}>
@@ -186,10 +191,11 @@ export default function App() {
               <XAxis dataKey="hour" minTickGap={24} stroke="#94a3b8" />
               <YAxis stroke="#94a3b8" domain={["auto", "auto"]} />
               <Tooltip
-                formatter={(value) => [fmtPrice(value), '小时最大价差']}
+                formatter={(value, name) => [fmtPrice(value), name === 'maxValue' ? '小时最大价差' : '小时最小价差']}
                 labelFormatter={(label, payload) => payload?.[0]?.payload?.label ?? label}
               />
-              <Area type="monotone" dataKey="value" stroke="#22c55e" fill="url(#spreadFill)" strokeWidth={2} />
+              <Area type="monotone" dataKey="maxValue" name="maxValue" stroke="#22c55e" fill="url(#spreadFill)" strokeWidth={2} />
+              <Area type="monotone" dataKey="minValue" name="minValue" stroke="#f59e0b" fillOpacity={0} strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -203,15 +209,19 @@ export default function App() {
               <tr>
                 <th>小时桶 (北京时间)</th>
                 <th>该小时最大价差出现时刻</th>
-                <th>差价值</th>
+                <th>最大值</th>
+                <th>该小时最小价差出现时刻</th>
+                <th>最小值</th>
               </tr>
             </thead>
             <tbody>
               {[...history].reverse().slice(0, 48).map((item) => (
                 <tr key={item.bucket}>
                   <td>{fmtHour(item.bucket)}</td>
-                  <td>{fmtTime(item.time)}</td>
-                  <td>{fmtPrice(item.value)}</td>
+                  <td>{fmtTime(item.maxTime ?? item.time)}</td>
+                  <td>{fmtPrice(item.maxValue ?? item.value)}</td>
+                  <td>{fmtTime(item.minTime ?? item.time)}</td>
+                  <td>{fmtPrice(item.minValue ?? item.value)}</td>
                 </tr>
               ))}
             </tbody>
