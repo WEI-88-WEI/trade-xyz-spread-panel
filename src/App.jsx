@@ -4,6 +4,7 @@ import { fetchSpreadSnapshot } from './api';
 import { PANEL_CONFIG } from './config';
 import { loadHistory, saveHistory, updateHourlyHistory } from './history';
 import { fmtHour, fmtPrice, fmtTime } from './utils';
+import { createPanelWebSocket } from './ws';
 
 const emptySnapshot = null;
 
@@ -22,7 +23,7 @@ export default function App() {
   const [history, setHistory] = useState(() => loadHistory());
   const [error, setError] = useState('');
   const [alertEnabled, setAlertEnabled] = useState(false);
-  const [audioEnabled, setAudioEnabled] = useState(false);
+  const [wsStatus, setWsStatus] = useState('connecting');
   const alertedRef = useRef(false);
 
   useEffect(() => {
@@ -40,34 +41,39 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const audio = new Audio('data:audio/wav;base64,UklGRlQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YTAAAAAA/////wAAAP////8AAAAA');
-    audio.volume = 0.2;
-    setAudioEnabled(Boolean(audio));
-  }, []);
+    const stop = createPanelWebSocket({
+      onStatus: setWsStatus,
+      onSnapshot: (next) => {
+        setSnapshot(next);
+        setError('');
+        setHistory((prev) => updateHourlyHistory(prev, next));
+      },
+    });
 
-  useEffect(() => {
-    let alive = true;
-
-    async function tick() {
+    const fallbackId = setInterval(async () => {
+      if (wsStatus === 'connected') return;
       try {
         const next = await fetchSpreadSnapshot();
-        if (!alive) return;
         setSnapshot(next);
         setError('');
         setHistory((prev) => updateHourlyHistory(prev, next));
       } catch (err) {
-        if (!alive) return;
         setError(err.message || '拉取数据失败');
       }
-    }
+    }, PANEL_CONFIG.pollIntervalMs);
 
-    tick();
-    const id = setInterval(tick, PANEL_CONFIG.pollIntervalMs);
+    fetchSpreadSnapshot()
+      .then((next) => {
+        setSnapshot((prev) => prev ?? next);
+        setHistory((prev) => updateHourlyHistory(prev, next));
+      })
+      .catch(() => {});
+
     return () => {
-      alive = false;
-      clearInterval(id);
+      stop();
+      clearInterval(fallbackId);
     };
-  }, []);
+  }, [wsStatus]);
 
   useEffect(() => {
     const spread = snapshot?.spreads?.shortBrentLongCl;
@@ -80,26 +86,24 @@ export default function App() {
           body: `BRENTOIL 做空现价 - CL 做多现价 = ${spread.toFixed(3)}，已超过阈值 ${PANEL_CONFIG.alertThreshold}`,
         });
       }
-      if (audioEnabled) {
-        try {
-          const ctx = new (window.AudioContext || window.webkitAudioContext)();
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.type = 'triangle';
-          osc.frequency.value = 880;
-          gain.gain.value = 0.03;
-          osc.start();
-          setTimeout(() => {
-            osc.stop();
-            ctx.close();
-          }, 250);
-        } catch {}
-      }
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'triangle';
+        osc.frequency.value = 880;
+        gain.gain.value = 0.03;
+        osc.start();
+        setTimeout(() => {
+          osc.stop();
+          ctx.close();
+        }, 250);
+      } catch {}
     }
     if (!crossed) alertedRef.current = false;
-  }, [snapshot, alertEnabled, audioEnabled]);
+  }, [snapshot, alertEnabled]);
 
   const chartData = useMemo(
     () => history.map((item) => ({ ...item, hour: fmtHour(item.bucket) })),
@@ -107,6 +111,7 @@ export default function App() {
   );
 
   const latest = snapshot?.spreads ?? {};
+  const wsBadge = wsStatus === 'connected' ? 'WS 实时' : wsStatus === 'connecting' ? 'WS 连接中' : 'HTTP 回退';
 
   return (
     <div className="page">
@@ -115,11 +120,11 @@ export default function App() {
           <div className="eyebrow">Hyperliquid xyz 面板</div>
           <h1>BRENTOIL / CL 价差监控</h1>
           <p>
-            实时比较 ask / bid 与 mid / mid 价差，并按小时记录近一个月内「该小时出现过的最大价差」。
+            以后端 WebSocket 实时推送为主，并按小时记录近一个月内「该小时出现过的最大价差」。
           </p>
         </div>
         <div className="hero-meta">
-          <div>轮询频率：{PANEL_CONFIG.pollIntervalMs / 1000}s</div>
+          <div>模式：{wsBadge}</div>
           <div>提醒阈值：{PANEL_CONFIG.alertThreshold}</div>
           <div>历史窗口：{PANEL_CONFIG.historyHours} 小时</div>
           <div>最后更新：{fmtTime(snapshot?.ts)}</div>
@@ -171,7 +176,7 @@ export default function App() {
           <ul className="list">
             <li>条件：BRENTOIL 的做空现价减去 CL 的做多现价 &gt; config.alertThreshold</li>
             <li>现价定义：做空现价取 bid，做多现价取 ask</li>
-            <li>触发后会做浏览器通知；价差回落到阈值下方后可再次触发</li>
+            <li>首选 WebSocket；连接失败时自动退回 HTTP 轮询</li>
           </ul>
         </div>
       </section>

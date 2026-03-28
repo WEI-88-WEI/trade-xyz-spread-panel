@@ -40,6 +40,7 @@ export async function fetchSpreadSnapshot() {
 
   return {
     ts: Date.now(),
+    source: 'http-fallback',
     brent,
     cl,
     spreads: {

@@ -13,8 +13,12 @@
 3. 记录近一个月小时级历史：
    - 每小时只保留该小时出现过的最大 `BRENTOIL bid - CL ask`
    - 记录格式为：`该小时的某个时刻 -> 差价值`
-4. 支持打包：`npm run build`
-5. 构建后产物在 `dist/`，可直接静态部署使用
+4. 使用 WebSocket：
+   - 本地后端通过 Hyperliquid WebSocket 订阅 `xyz:BRENTOIL` 和 `xyz:CL`
+   - 前端默认连接 `ws://localhost:8788`
+   - 若 WS 不可用，自动回退到 HTTP 轮询
+5. 支持打包：`npm run build`
+6. 构建后产物在 `dist/`，可直接静态部署使用
 
 ## 配置
 
@@ -40,6 +44,7 @@
 
 ```bash
 npm install
+npm run server
 npm run dev
 ```
 
@@ -50,6 +55,12 @@ npm install
 npm run build
 ```
 
+实时模式还需要启动本地 WS 服务：
+
+```bash
+npm run server
+```
+
 打包后目录：
 
 ```bash
@@ -58,7 +69,8 @@ dist/
 
 ## 说明
 
-- 数据源：Hyperliquid `https://api.hyperliquid.xyz/info`
+- 数据源：Hyperliquid HTTP + WebSocket
 - 品种：`xyz:BRENTOIL` 与 `xyz:CL`
-- 页面是纯前端实现，历史存储在浏览器 `localStorage`
+- 前端打包产物在 `dist/`，历史存储在浏览器 `localStorage`
+- 实时模式需要本地启动 `npm run server`，默认对浏览器暴露 `ws://localhost:8788`
 - 提醒使用浏览器 Notification API，因此首次打开需要授权通知权限
