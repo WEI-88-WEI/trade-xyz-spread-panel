@@ -199,7 +199,7 @@ export default function App() {
           <table>
             <thead>
               <tr>
-                <th>小时桶 (UTC)</th>
+                <th>小时桶 (北京时间)</th>
                 <th>该小时最大价差出现时刻</th>
                 <th>差价值</th>
               </tr>
