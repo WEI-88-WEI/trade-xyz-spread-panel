@@ -1,0 +1,231 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { fetchSpreadSnapshot } from './api';
+import { PANEL_CONFIG } from './config';
+import { loadHistory, saveHistory, updateHourlyHistory } from './history';
+import { fmtHour, fmtPrice, fmtTime } from './utils';
+
+const emptySnapshot = null;
+
+function StatCard({ title, value, hint, highlight = false }) {
+  return (
+    <div className={`card stat-card ${highlight ? 'highlight' : ''}`}>
+      <div className="stat-title">{title}</div>
+      <div className="stat-value">{value}</div>
+      <div className="stat-hint">{hint}</div>
+    </div>
+  );
+}
+
+export default function App() {
+  const [snapshot, setSnapshot] = useState(emptySnapshot);
+  const [history, setHistory] = useState(() => loadHistory());
+  const [error, setError] = useState('');
+  const [alertEnabled, setAlertEnabled] = useState(false);
+  const [audioEnabled, setAudioEnabled] = useState(false);
+  const alertedRef = useRef(false);
+
+  useEffect(() => {
+    saveHistory(history);
+  }, [history]);
+
+  useEffect(() => {
+    const enableAlerting = async () => {
+      if ('Notification' in window && Notification.permission === 'default') {
+        await Notification.requestPermission();
+      }
+      setAlertEnabled('Notification' in window && Notification.permission === 'granted');
+    };
+    enableAlerting();
+  }, []);
+
+  useEffect(() => {
+    const audio = new Audio('data:audio/wav;base64,UklGRlQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YTAAAAAA/////wAAAP////8AAAAA');
+    audio.volume = 0.2;
+    setAudioEnabled(Boolean(audio));
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function tick() {
+      try {
+        const next = await fetchSpreadSnapshot();
+        if (!alive) return;
+        setSnapshot(next);
+        setError('');
+        setHistory((prev) => updateHourlyHistory(prev, next));
+      } catch (err) {
+        if (!alive) return;
+        setError(err.message || '拉取数据失败');
+      }
+    }
+
+    tick();
+    const id = setInterval(tick, PANEL_CONFIG.pollIntervalMs);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, []);
+
+  useEffect(() => {
+    const spread = snapshot?.spreads?.shortBrentLongCl;
+    if (spread == null) return;
+    const crossed = spread > PANEL_CONFIG.alertThreshold;
+    if (crossed && !alertedRef.current) {
+      alertedRef.current = true;
+      if (alertEnabled) {
+        new Notification('价差提醒', {
+          body: `BRENTOIL 做空现价 - CL 做多现价 = ${spread.toFixed(3)}，已超过阈值 ${PANEL_CONFIG.alertThreshold}`,
+        });
+      }
+      if (audioEnabled) {
+        try {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.type = 'triangle';
+          osc.frequency.value = 880;
+          gain.gain.value = 0.03;
+          osc.start();
+          setTimeout(() => {
+            osc.stop();
+            ctx.close();
+          }, 250);
+        } catch {}
+      }
+    }
+    if (!crossed) alertedRef.current = false;
+  }, [snapshot, alertEnabled, audioEnabled]);
+
+  const chartData = useMemo(
+    () => history.map((item) => ({ ...item, hour: fmtHour(item.bucket) })),
+    [history]
+  );
+
+  const latest = snapshot?.spreads ?? {};
+
+  return (
+    <div className="page">
+      <header className="hero card">
+        <div>
+          <div className="eyebrow">Hyperliquid xyz 面板</div>
+          <h1>BRENTOIL / CL 价差监控</h1>
+          <p>
+            实时比较 ask / bid 与 mid / mid 价差，并按小时记录近一个月内「该小时出现过的最大价差」。
+          </p>
+        </div>
+        <div className="hero-meta">
+          <div>轮询频率：{PANEL_CONFIG.pollIntervalMs / 1000}s</div>
+          <div>提醒阈值：{PANEL_CONFIG.alertThreshold}</div>
+          <div>历史窗口：{PANEL_CONFIG.historyHours} 小时</div>
+          <div>最后更新：{fmtTime(snapshot?.ts)}</div>
+        </div>
+      </header>
+
+      {error ? <div className="error">{error}</div> : null}
+
+      <section className="grid grid-3">
+        <StatCard
+          title="BRENTOIL 做空现价 - CL 做多现价"
+          value={fmtPrice(latest.shortBrentLongCl)}
+          hint="= BRENTOIL bid - CL ask"
+          highlight={latest.shortBrentLongCl > PANEL_CONFIG.alertThreshold}
+        />
+        <StatCard
+          title="BRENTOIL 做多现价 - CL 做空现价"
+          value={fmtPrice(latest.longBrentShortCl)}
+          hint="= BRENTOIL ask - CL bid"
+        />
+        <StatCard
+          title="Mid - Mid 价差"
+          value={fmtPrice(latest.midMid)}
+          hint="= BRENTOIL mid - CL mid"
+        />
+      </section>
+
+      <section className="grid grid-2">
+        <div className="card">
+          <h2>盘口</h2>
+          <div className="book-grid">
+            <div>
+              <div className="subtle">BRENTOIL</div>
+              <div>Bid: {fmtPrice(snapshot?.brent?.bid)}</div>
+              <div>Ask: {fmtPrice(snapshot?.brent?.ask)}</div>
+              <div>Mid: {fmtPrice(snapshot?.brent?.mid)}</div>
+            </div>
+            <div>
+              <div className="subtle">CL</div>
+              <div>Bid: {fmtPrice(snapshot?.cl?.bid)}</div>
+              <div>Ask: {fmtPrice(snapshot?.cl?.ask)}</div>
+              <div>Mid: {fmtPrice(snapshot?.cl?.mid)}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <h2>提醒逻辑</h2>
+          <ul className="list">
+            <li>条件：BRENTOIL 的做空现价减去 CL 的做多现价 &gt; config.alertThreshold</li>
+            <li>现价定义：做空现价取 bid，做多现价取 ask</li>
+            <li>触发后会做浏览器通知；价差回落到阈值下方后可再次触发</li>
+          </ul>
+        </div>
+      </section>
+
+      <section className="card chart-card">
+        <div className="chart-head">
+          <h2>近一个月小时级最大价差</h2>
+          <span>记录维度：每小时保留该小时出现过的最大「BRENTOIL bid - CL ask」</span>
+        </div>
+        <div className="chart-wrap">
+          <ResponsiveContainer width="100%" height={320}>
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id="spreadFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#22c55e" stopOpacity={0.45} />
+                  <stop offset="100%" stopColor="#22c55e" stopOpacity={0.04} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" />
+              <XAxis dataKey="hour" minTickGap={24} stroke="#94a3b8" />
+              <YAxis stroke="#94a3b8" domain={["auto", "auto"]} />
+              <Tooltip
+                formatter={(value) => [fmtPrice(value), '小时最大价差']}
+                labelFormatter={(label, payload) => payload?.[0]?.payload?.label ?? label}
+              />
+              <Area type="monotone" dataKey="value" stroke="#22c55e" fill="url(#spreadFill)" strokeWidth={2} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
+
+      <section className="card">
+        <h2>小时记录</h2>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>小时桶 (UTC)</th>
+                <th>该小时最大价差出现时刻</th>
+                <th>差价值</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...history].reverse().slice(0, 48).map((item) => (
+                <tr key={item.bucket}>
+                  <td>{fmtHour(item.bucket)}</td>
+                  <td>{fmtTime(item.time)}</td>
+                  <td>{fmtPrice(item.value)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
