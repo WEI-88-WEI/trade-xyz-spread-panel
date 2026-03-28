@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { fetchSpreadSnapshot } from './api';
 import { PANEL_CONFIG } from './config';
 import { loadHistory, saveHistory, updateHourlyHistory } from './history';
 import { fmtHour, fmtPrice, fmtTime } from './utils';
@@ -42,7 +41,13 @@ export default function App() {
 
   useEffect(() => {
     const stop = createPanelWebSocket({
-      onStatus: setWsStatus,
+      onStatus: (status) => {
+        setWsStatus(status);
+        if (status === 'connected') setError('');
+        if (status === 'error' || status === 'disconnected') {
+          setError('WebSocket 已断开，正在重连…');
+        }
+      },
       onSnapshot: (next) => {
         setSnapshot(next);
         setError('');
@@ -50,28 +55,8 @@ export default function App() {
       },
     });
 
-    const fallbackId = setInterval(async () => {
-      if (wsStatus === 'connected' || wsStatus === 'connecting') return;
-      try {
-        const next = await fetchSpreadSnapshot();
-        setSnapshot(next);
-        setError('');
-        setHistory((prev) => updateHourlyHistory(prev, next));
-      } catch (err) {
-        setError(err.message || '拉取数据失败');
-      }
-    }, PANEL_CONFIG.pollIntervalMs);
-
-    fetchSpreadSnapshot()
-      .then((next) => {
-        setSnapshot((prev) => prev ?? next);
-        setHistory((prev) => updateHourlyHistory(prev, next));
-      })
-      .catch(() => {});
-
     return () => {
       stop();
-      clearInterval(fallbackId);
     };
   }, []);
 
@@ -111,7 +96,7 @@ export default function App() {
   );
 
   const latest = snapshot?.spreads ?? {};
-  const wsBadge = wsStatus === 'connected' ? 'WS 实时' : wsStatus === 'connecting' ? 'WS 连接中' : 'HTTP 回退';
+  const wsBadge = wsStatus === 'connected' ? 'WS 实时' : wsStatus === 'connecting' ? 'WS 连接中' : 'WS 重连中';
 
   return (
     <div className="page">
@@ -120,7 +105,7 @@ export default function App() {
           <div className="eyebrow">Hyperliquid xyz 面板</div>
           <h1>BRENTOIL / CL 价差监控</h1>
           <p>
-            以后端 WebSocket 实时推送为主，并按小时记录近一个月内「该小时出现过的最大价差」。
+            仅通过后端 WebSocket 实时推送，并按小时记录近一个月内「该小时出现过的最大价差」。
           </p>
         </div>
         <div className="hero-meta">
@@ -176,7 +161,7 @@ export default function App() {
           <ul className="list">
             <li>条件：BRENTOIL 的做空现价减去 CL 的做多现价 &gt; config.alertThreshold</li>
             <li>现价定义：做空现价取 bid，做多现价取 ask</li>
-            <li>首选 WebSocket；连接失败时自动退回 HTTP 轮询</li>
+            <li>仅使用 WebSocket；若连接中断，页面会持续自动重连</li>
           </ul>
         </div>
       </section>
