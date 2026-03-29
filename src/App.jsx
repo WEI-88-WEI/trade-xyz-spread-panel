@@ -179,6 +179,7 @@ export default function App() {
         <div className="chart-head">
           <h2>近一个月小时级最大 / 最小价差</h2>
           <span>记录维度：每小时保留该小时出现过的最大 / 最小「BRENTOIL bid - CL ask」</span>
+          <span>当前已记录 {history.length} 个小时桶</span>
         </div>
         <div className="chart-wrap">
           <ResponsiveContainer width="100%" height={320}>
@@ -191,13 +192,13 @@ export default function App() {
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" />
               <XAxis dataKey="hour" minTickGap={24} stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" domain={["auto", "auto"]} />
+              <YAxis stroke="#94a3b8" domain={["auto", "auto"]} padding={{ top: 12, bottom: 12 }} />
               <Tooltip
                 formatter={(value, name) => [fmtPrice(value), name === 'maxValue' ? '小时最大价差' : '小时最小价差']}
                 labelFormatter={(label, payload) => payload?.[0]?.payload?.label ?? label}
               />
-              <Area type="monotone" dataKey="maxValue" name="maxValue" stroke="#22c55e" fill="url(#spreadFill)" strokeWidth={2} />
-              <Area type="monotone" dataKey="minValue" name="minValue" stroke="#f59e0b" fillOpacity={0} strokeWidth={2} />
+              <Area type="monotone" dataKey="maxValue" name="maxValue" stroke="#22c55e" fill="url(#spreadFill)" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+              <Area type="monotone" dataKey="minValue" name="minValue" stroke="#f59e0b" fillOpacity={0} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -217,15 +218,21 @@ export default function App() {
               </tr>
             </thead>
             <tbody>
-              {[...history].reverse().slice(0, 48).map((item) => (
-                <tr key={item.bucket}>
-                  <td>{fmtHour(item.bucket)}</td>
-                  <td>{fmtTime(item.maxTime ?? item.time)}</td>
-                  <td>{fmtPrice(item.maxValue ?? item.value)}</td>
-                  <td>{fmtTime(item.minTime ?? item.time)}</td>
-                  <td>{fmtPrice(item.minValue ?? item.value)}</td>
+              {history.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="empty-row">暂无历史记录</td>
                 </tr>
-              ))}
+              ) : (
+                [...history].reverse().slice(0, 48).map((item) => (
+                  <tr key={item.bucket}>
+                    <td>{fmtHour(item.bucket)}</td>
+                    <td>{fmtTime(item.maxTime ?? item.time)}</td>
+                    <td>{fmtPrice(item.maxValue ?? item.value)}</td>
+                    <td>{fmtTime(item.minTime ?? item.time)}</td>
+                    <td>{fmtPrice(item.minValue ?? item.value)}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
