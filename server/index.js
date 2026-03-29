@@ -1,5 +1,6 @@
 import express from 'express';
 import { WebSocketServer, WebSocket } from 'ws';
+import { loadHistory, saveHistory, updateHourlyHistory } from './historyStore.js';
 
 const PORT = Number(process.env.PORT || 8787);
 const HL_WS_URL = 'wss://api.hyperliquid.xyz/ws';
@@ -8,6 +9,9 @@ const COINS = ['xyz:BRENTOIL', 'xyz:CL'];
 const app = express();
 app.get('/health', (_req, res) => {
   res.json({ ok: true, latest: state.latest });
+});
+app.get('/history', (_req, res) => {
+  res.json({ ok: true, history: state.history });
 });
 app.listen(PORT, () => {
   console.log(`[server] health endpoint on http://localhost:${PORT}/health`);
@@ -20,6 +24,7 @@ const state = {
   books: {},
   mids: {},
   latest: null,
+  history: loadHistory(),
 };
 
 function topOfBook(book) {
@@ -49,6 +54,8 @@ function buildSnapshot() {
     },
   };
   state.latest = snapshot;
+  state.history = updateHourlyHistory(state.history, snapshot);
+  saveHistory(state.history);
   return snapshot;
 }
 

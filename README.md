@@ -11,8 +11,9 @@
 2. 支持浏览器提醒：
    - 当 `BRENTOIL 做空现价 - CL 做多现价 > config.alertThreshold` 时触发
 3. 记录近一个月小时级历史：
-   - 每小时只保留该小时出现过的最大 `BRENTOIL bid - CL ask`
-   - 记录格式为：`该小时的某个时刻 -> 差价值`
+   - 服务端每小时持续记录，不依赖网页是否打开
+   - 每小时保留该小时出现过的最大 / 最小 `BRENTOIL bid - CL ask`
+   - 记录格式为：`该小时的某个时刻 -> 最大值 / 最小值`
 4. 使用 WebSocket：
    - 本地后端通过 Hyperliquid WebSocket 订阅 `xyz:BRENTOIL` 和 `xyz:CL`
    - 前端默认连接当前页面同域名下的 `/ws`
@@ -72,6 +73,6 @@ dist/
 
 - 数据源：Hyperliquid HTTP + WebSocket
 - 品种：`xyz:BRENTOIL` 与 `xyz:CL`
-- 前端打包产物在 `dist/`，历史存储在浏览器 `localStorage`
+- 前端打包产物在 `dist/`，小时历史由服务端保存在 `data/history.json`
 - 实时模式需要本地启动 `npm run server`，部署时建议由反向代理把同域名下的 `/ws` 转发到本地 WebSocket 服务、把 `/health` 转发到后端健康检查接口
 - 提醒使用浏览器 Notification API，因此首次打开需要授权通知权限

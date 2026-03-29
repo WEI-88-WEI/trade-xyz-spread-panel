@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { PANEL_CONFIG } from './config';
-import { getRecentAverageThreshold, loadHistory, saveHistory, updateHourlyHistory } from './history';
+import { fetchHistory, getRecentAverageThreshold } from './history';
 import { fmtHour, fmtPrice, fmtTime } from './utils';
 import { createPanelWebSocket } from './ws';
 
@@ -19,15 +19,11 @@ function StatCard({ title, value, hint, highlight = false }) {
 
 export default function App() {
   const [snapshot, setSnapshot] = useState(emptySnapshot);
-  const [history, setHistory] = useState(() => loadHistory());
+  const [history, setHistory] = useState([]);
   const [error, setError] = useState('');
   const [alertEnabled, setAlertEnabled] = useState(false);
   const [wsStatus, setWsStatus] = useState('connecting');
   const alertedRef = useRef(false);
-
-  useEffect(() => {
-    saveHistory(history);
-  }, [history]);
 
   useEffect(() => {
     const enableAlerting = async () => {
@@ -51,13 +47,19 @@ export default function App() {
       onSnapshot: (next) => {
         setSnapshot(next);
         setError('');
-        setHistory((prev) => updateHourlyHistory(prev, next));
+        fetchHistory().then((rows) => setHistory(rows)).catch(() => {});
       },
     });
 
     return () => {
       stop();
     };
+  }, []);
+
+  useEffect(() => {
+    fetchHistory()
+      .then((next) => setHistory(next))
+      .catch((err) => setError(err.message || '历史加载失败'));
   }, []);
 
   const chartData = useMemo(
@@ -112,7 +114,7 @@ export default function App() {
           <div className="eyebrow">Hyperliquid xyz 面板</div>
           <h1>BRENTOIL / CL 价差监控</h1>
           <p>
-            仅通过后端 WebSocket 实时推送，并按小时记录近一个月内「该小时出现过的最大价差 / 最小价差」。
+            仅通过后端 WebSocket 实时推送，并由服务端持续按小时记录近一个月内「该小时出现过的最大价差 / 最小价差」。
           </p>
         </div>
         <div className="hero-meta">
