@@ -20,15 +20,11 @@ app.listen(PORT, () => {
 const clientWss = new WebSocketServer({ port: PORT + 1 });
 console.log(`[server] client websocket on ws://localhost:${PORT + 1}`);
 
-const BROADCAST_INTERVAL_MS = 200;
-
 const state = {
   books: {},
   mids: {},
   latest: null,
   history: loadHistory(),
-  lastBroadcastKey: null,
-  broadcastTimer: null,
 };
 
 function topOfBook(book) {
@@ -63,39 +59,11 @@ function buildSnapshot() {
   return snapshot;
 }
 
-function snapshotKey(snapshot) {
-  return JSON.stringify({
-    brent: {
-      bid: snapshot?.brent?.bid,
-      ask: snapshot?.brent?.ask,
-      mid: snapshot?.brent?.mid,
-    },
-    cl: {
-      bid: snapshot?.cl?.bid,
-      ask: snapshot?.cl?.ask,
-      mid: snapshot?.cl?.mid,
-    },
-    spreads: snapshot?.spreads,
-  });
-}
-
 function broadcast(payload) {
   const raw = JSON.stringify(payload);
   for (const client of clientWss.clients) {
     if (client.readyState === WebSocket.OPEN) client.send(raw);
   }
-}
-
-function scheduleBroadcast() {
-  if (state.broadcastTimer) return;
-  state.broadcastTimer = setTimeout(() => {
-    state.broadcastTimer = null;
-    const snapshot = buildSnapshot();
-    const key = snapshotKey(snapshot);
-    if (key === state.lastBroadcastKey) return;
-    state.lastBroadcastKey = key;
-    broadcast({ type: 'snapshot', data: snapshot });
-  }, BROADCAST_INTERVAL_MS);
 }
 
 clientWss.on('connection', (socket) => {
@@ -121,7 +89,7 @@ function connectUpstream() {
       if (msg.channel === 'l2Book' && msg.data?.coin) {
         state.books[msg.data.coin] = msg.data;
         if (state.books['xyz:BRENTOIL'] && state.books['xyz:CL']) {
-          scheduleBroadcast();
+          broadcast({ type: 'snapshot', data: buildSnapshot() });
         }
       }
       if (msg.channel === 'allMids' && msg.data?.mids) {
@@ -129,7 +97,7 @@ function connectUpstream() {
           Object.entries(msg.data.mids).map(([k, v]) => [k, Number(v)])
         );
         if (state.books['xyz:BRENTOIL'] && state.books['xyz:CL']) {
-          scheduleBroadcast();
+          broadcast({ type: 'snapshot', data: buildSnapshot() });
         }
       }
     } catch (err) {
