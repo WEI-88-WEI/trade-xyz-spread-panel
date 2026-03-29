@@ -74,5 +74,5 @@ dist/
 - 数据源：Hyperliquid HTTP + WebSocket
 - 品种：`xyz:BRENTOIL` 与 `xyz:CL`
 - 前端打包产物在 `dist/`，小时历史由服务端保存在 `data/history.json`
-- 实时模式需要本地启动 `npm run server`，部署时建议由反向代理把同域名下的 `/ws` 转发到本地 WebSocket 服务、把 `/health` / `/history` 转发到后端接口
+- 实时模式需要本地启动 `npm run server`，部署时建议由反向代理把同域名下的 `/ws` 转发到本地 WebSocket 服务，并把 `/health`、`/history` 转发到后端接口
 - 提醒使用浏览器 Notification API，因此首次打开需要授权通知权限
