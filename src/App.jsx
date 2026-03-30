@@ -163,8 +163,6 @@ export default function App() {
 
     if (!crossed) {
       alertedRef.current = false;
-      alertBurstTimeoutsRef.current.forEach((id) => clearTimeout(id));
-      alertBurstTimeoutsRef.current = [];
     }
   }, [snapshot, alertEnabled, alertThreshold]);
   const latest = snapshot?.spreads ?? {};
