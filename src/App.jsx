@@ -27,6 +27,7 @@ export default function App() {
   const alertCooldownUntilRef = useRef(0);
   const alertBurstTimeoutsRef = useRef([]);
   const alertBurstActiveRef = useRef(false);
+  const audioContextRef = useRef(null);
   const historySignatureRef = useRef('');
 
   useEffect(() => {
@@ -94,6 +95,10 @@ export default function App() {
       alertBurstTimeoutsRef.current.forEach((id) => clearTimeout(id));
       alertBurstTimeoutsRef.current = [];
       alertBurstActiveRef.current = false;
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close().catch(() => {});
+      }
+      audioContextRef.current = null;
     };
   }, []);
 
@@ -115,38 +120,48 @@ export default function App() {
     if (spread == null) return;
     const crossed = spread > alertThreshold;
 
-    const playBeepBurst = () => {
-      const playOnce = () => {
-        try {
-          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const playBeepBurst = async () => {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+
+        if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+          audioContextRef.current = new AudioCtx();
+        }
+
+        const ctx = audioContextRef.current;
+        if (ctx.state === 'suspended') {
+          await ctx.resume();
+        }
+
+        alertBurstTimeoutsRef.current.forEach((id) => clearTimeout(id));
+        alertBurstTimeoutsRef.current = [];
+        alertBurstActiveRef.current = true;
+
+        const baseTime = ctx.currentTime + 0.02;
+        for (let i = 0; i < 6; i += 1) {
+          const startAt = baseTime + i * 1.0;
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.connect(gain);
           gain.connect(ctx.destination);
           osc.type = 'triangle';
           osc.frequency.value = 880;
-          gain.gain.value = 0.03;
-          osc.start();
-          setTimeout(() => {
-            osc.stop();
-            ctx.close();
-          }, 250);
-        } catch {}
-      };
+          gain.gain.setValueAtTime(0.0001, startAt);
+          gain.gain.exponentialRampToValueAtTime(0.03, startAt + 0.01);
+          gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.25);
+          osc.start(startAt);
+          osc.stop(startAt + 0.26);
+        }
 
-      alertBurstTimeoutsRef.current.forEach((id) => clearTimeout(id));
-      alertBurstTimeoutsRef.current = [];
-      alertBurstActiveRef.current = true;
-
-      for (let i = 0; i < 6; i += 1) {
         const timeoutId = setTimeout(() => {
-          playOnce();
-          if (i === 5) {
-            alertBurstTimeoutsRef.current = [];
-            alertBurstActiveRef.current = false;
-          }
-        }, i * 1000);
+          alertBurstTimeoutsRef.current = [];
+          alertBurstActiveRef.current = false;
+        }, 5500);
         alertBurstTimeoutsRef.current.push(timeoutId);
+      } catch (err) {
+        console.error('beep burst failed', err);
+        alertBurstActiveRef.current = false;
       }
     };
 
