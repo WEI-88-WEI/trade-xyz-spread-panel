@@ -27,8 +27,8 @@ export default function MinuteDistributionSummary({ distribution }) {
       backgroundColor: 'transparent',
       animation: false,
       grid: [
-        { left: 72, right: 20, top: 16, height: 118 },
-        { left: 72, right: 20, top: 172, height: 118 },
+        { left: 72, right: 20, top: 8, height: 104 },
+        { left: 72, right: 20, top: 136, height: 104 },
       ],
       tooltip: {
         trigger: 'axis',
@@ -114,7 +114,7 @@ export default function MinuteDistributionSummary({ distribution }) {
         <SummaryList title="小时最低价差最常出现时间段" items={minTopBuckets} tone="tone-amber" />
       </div>
       <div className="distribution-summary-chart">
-        <ReactECharts option={option} style={{ width: '100%', height: 310 }} notMerge={false} lazyUpdate={false} />
+        <ReactECharts option={option} style={{ width: '100%', height: 248 }} notMerge={false} lazyUpdate={false} />
       </div>
     </div>
   );
