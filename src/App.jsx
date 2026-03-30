@@ -26,6 +26,7 @@ export default function App() {
   const alertedRef = useRef(false);
   const alertCooldownUntilRef = useRef(0);
   const alertBurstTimeoutsRef = useRef([]);
+  const alertBurstActiveRef = useRef(false);
   const historySignatureRef = useRef('');
 
   useEffect(() => {
@@ -92,6 +93,7 @@ export default function App() {
     return () => {
       alertBurstTimeoutsRef.current.forEach((id) => clearTimeout(id));
       alertBurstTimeoutsRef.current = [];
+      alertBurstActiveRef.current = false;
     };
   }, []);
 
@@ -134,12 +136,14 @@ export default function App() {
 
       alertBurstTimeoutsRef.current.forEach((id) => clearTimeout(id));
       alertBurstTimeoutsRef.current = [];
+      alertBurstActiveRef.current = true;
 
       for (let i = 0; i < 6; i += 1) {
         const timeoutId = setTimeout(() => {
           playOnce();
           if (i === 5) {
             alertBurstTimeoutsRef.current = [];
+            alertBurstActiveRef.current = false;
           }
         }, i * 1000);
         alertBurstTimeoutsRef.current.push(timeoutId);
@@ -156,7 +160,7 @@ export default function App() {
         });
       }
 
-      if (alertBurstTimeoutsRef.current.length === 0) {
+      if (!alertBurstActiveRef.current) {
         playBeepBurst();
       }
     }
