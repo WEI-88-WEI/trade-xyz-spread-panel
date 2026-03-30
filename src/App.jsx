@@ -26,6 +26,7 @@ export default function App() {
   const alertedRef = useRef(false);
   const alertCooldownUntilRef = useRef(0);
   const alertBurstTimeoutsRef = useRef([]);
+  const historySignatureRef = useRef('');
 
   useEffect(() => {
     const enableAlerting = async () => {
@@ -38,6 +39,21 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const maybeRefreshHistory = () => {
+      fetchHistory()
+        .then((rows) => {
+          const latest = rows[rows.length - 1];
+          const signature = latest
+            ? [latest.bucket, latest.maxValue ?? latest.value, latest.minValue ?? latest.value, latest.maxTime ?? latest.time, latest.minTime ?? latest.time].join('|')
+            : 'empty';
+          if (signature !== historySignatureRef.current) {
+            historySignatureRef.current = signature;
+            setHistory(rows);
+          }
+        })
+        .catch(() => {});
+    };
+
     const stop = createPanelWebSocket({
       onStatus: (status) => {
         setWsStatus(status);
@@ -49,9 +65,11 @@ export default function App() {
       onSnapshot: (next) => {
         setSnapshot(next);
         setError('');
-        fetchHistory().then((rows) => setHistory(rows)).catch(() => {});
+        maybeRefreshHistory();
       },
     });
+
+    maybeRefreshHistory();
 
     return () => {
       stop();
@@ -60,7 +78,13 @@ export default function App() {
 
   useEffect(() => {
     fetchHistory()
-      .then((next) => setHistory(next))
+      .then((next) => {
+        const latest = next[next.length - 1];
+        historySignatureRef.current = latest
+          ? [latest.bucket, latest.maxValue ?? latest.value, latest.minValue ?? latest.value, latest.maxTime ?? latest.time, latest.minTime ?? latest.time].join('|')
+          : 'empty';
+        setHistory(next);
+      })
       .catch((err) => setError(err.message || '历史加载失败'));
   }, []);
 
