@@ -37,6 +37,7 @@ p { margin: 0; color: #94a3b8; line-height: 1.6; }
 .chart-head { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; margin-bottom: 10px; }
 .chart-head span { color: #94a3b8; font-size: 13px; }
 .chart-wrap { width: 100%; height: 320px; }
+.chart-wrap-echarts { height: 360px; }
 .table-wrap { overflow: auto; }
 table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid rgba(148, 163, 184, 0.12); font-size: 14px; color: #e2e8f0; }

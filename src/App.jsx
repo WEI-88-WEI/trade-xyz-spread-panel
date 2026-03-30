@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { PANEL_CONFIG } from './config';
+import HistoryChart from './HistoryChart';
 import { fetchHistory, getRecentAverageThreshold } from './history';
 import { fmtHour, fmtPrice, fmtTime } from './utils';
 import { createPanelWebSocket } from './ws';
@@ -181,26 +181,8 @@ export default function App() {
           <span>记录维度：每小时保留该小时出现过的最大 / 最小「BRENTOIL bid - CL ask」</span>
           <span>当前已记录 {history.length} 个小时桶</span>
         </div>
-        <div className="chart-wrap">
-          <ResponsiveContainer width="100%" height={320}>
-            <AreaChart data={chartData}>
-              <defs>
-                <linearGradient id="spreadFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#22c55e" stopOpacity={0.45} />
-                  <stop offset="100%" stopColor="#22c55e" stopOpacity={0.04} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" />
-              <XAxis dataKey="hour" minTickGap={24} stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" domain={["auto", "auto"]} padding={{ top: 12, bottom: 12 }} />
-              <Tooltip
-                formatter={(value, name) => [fmtPrice(value), name === 'maxValue' ? '小时最大价差' : '小时最小价差']}
-                labelFormatter={(label, payload) => payload?.[0]?.payload?.label ?? label}
-              />
-              <Area type="monotone" dataKey="maxValue" name="maxValue" stroke="#22c55e" fill="url(#spreadFill)" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-              <Area type="monotone" dataKey="minValue" name="minValue" stroke="#f59e0b" fillOpacity={0} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-            </AreaChart>
-          </ResponsiveContainer>
+        <div className="chart-wrap chart-wrap-echarts">
+          <HistoryChart history={chartData} />
         </div>
       </section>
 

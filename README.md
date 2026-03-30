@@ -6,6 +6,7 @@
 
 - 服务端常驻拉取与广播
 - 只要已有双边数据，服务端就立即推送最新快照
+- 图表层使用 ECharts，支持 dataZoom（滑条缩放 + 鼠标/触控 inside 缩放）
 - 前端 WebSocket 实时展示
 - 服务端小时级历史持久化
 - 浏览器阈值提醒
@@ -95,6 +96,7 @@
 - BRENTOIL / CL 最新 bid / ask / mid
 - 当前提醒阈值
 - 最近一个月小时级 max / min 曲线
+- ECharts `dataZoom` 缩放条
 - 小时记录表
 
 时间显示为：
