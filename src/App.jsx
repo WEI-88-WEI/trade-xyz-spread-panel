@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { PANEL_CONFIG } from './config';
 import HistoryChart from './HistoryChart';
-import { fetchHistory, getRecentAverageThreshold } from './history';
+import MinuteDistributionChart from './MinuteDistributionChart';
+import { buildMinuteDistribution, fetchHistory, getRecentAverageThreshold } from './history';
 import { fmtHour, fmtPrice, fmtTime } from './utils';
 import { createPanelWebSocket } from './ws';
 
@@ -113,6 +114,7 @@ export default function App() {
   );
 
   const dynamicThreshold = useMemo(() => getRecentAverageThreshold(history, 3), [history]);
+  const minuteDistribution = useMemo(() => buildMinuteDistribution(history), [history]);
   const alertThreshold = dynamicThreshold ?? 6;
 
   useEffect(() => {
@@ -263,6 +265,17 @@ export default function App() {
         </div>
         <div className="chart-wrap chart-wrap-echarts">
           <HistoryChart history={chartData} />
+        </div>
+      </section>
+
+      <section className="card chart-card">
+        <div className="chart-head">
+          <h2>小时最高 / 最低价差出现分钟分布</h2>
+          <span>按北京时间每小时内的 00-59 分钟统计，观察极值更常落在哪些分钟</span>
+          <span>样本数：{history.length} 个小时桶</span>
+        </div>
+        <div className="chart-wrap chart-wrap-echarts">
+          <MinuteDistributionChart distribution={minuteDistribution} />
         </div>
       </section>
 

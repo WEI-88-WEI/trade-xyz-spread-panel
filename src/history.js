@@ -5,6 +5,20 @@ export async function fetchHistory() {
   return Array.isArray(data.history) ? data.history : [];
 }
 
+const DISPLAY_TIME_ZONE = 'Asia/Shanghai';
+
+function getMinuteOfHour(ts) {
+  if (!ts) return null;
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    minute: '2-digit',
+    hour12: false,
+    timeZone: DISPLAY_TIME_ZONE,
+  }).formatToParts(new Date(ts));
+  const minutePart = parts.find((part) => part.type === 'minute')?.value;
+  const minute = Number(minutePart);
+  return Number.isInteger(minute) && minute >= 0 && minute <= 59 ? minute : null;
+}
+
 export function getRecentAverageThreshold(history, hours = 3) {
   if (!Array.isArray(history) || history.length === 0) return null;
   const recent = [...history]
@@ -15,4 +29,28 @@ export function getRecentAverageThreshold(history, hours = 3) {
   if (recent.length === 0) return null;
   const sum = recent.reduce((acc, item) => acc + Number(item.maxValue ?? item.value), 0);
   return sum / recent.length;
+}
+
+export function buildMinuteDistribution(history) {
+  const maxBuckets = Array.from({ length: 60 }, (_, minute) => ({ minute, count: 0 }));
+  const minBuckets = Array.from({ length: 60 }, (_, minute) => ({ minute, count: 0 }));
+
+  if (!Array.isArray(history) || history.length === 0) {
+    return { maxBuckets, minBuckets };
+  }
+
+  for (const item of history) {
+    const maxMinute = getMinuteOfHour(item?.maxTime ?? item?.time);
+    const minMinute = getMinuteOfHour(item?.minTime ?? item?.time);
+
+    if (maxMinute != null) {
+      maxBuckets[maxMinute].count += 1;
+    }
+
+    if (minMinute != null) {
+      minBuckets[minMinute].count += 1;
+    }
+  }
+
+  return { maxBuckets, minBuckets };
 }
