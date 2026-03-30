@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { PANEL_CONFIG } from './config';
 import HistoryChart from './HistoryChart';
-import MinuteDistributionChart from './MinuteDistributionChart';
 import MinuteDistributionSummary from './MinuteDistributionSummary';
 import { buildMinuteDistribution, fetchHistory, getRecentAverageThreshold } from './history';
 import { fmtHour, fmtPrice, fmtTime } from './utils';
@@ -271,19 +270,9 @@ export default function App() {
 
       <section className="card chart-card">
         <div className="chart-head">
-          <h2>小时最高 / 最低价差出现分钟分布</h2>
-          <span>按北京时间每小时内的 12 个 5 分钟段统计，观察极值更常落在哪些时间段</span>
-          <span>样本数：{history.length} 个小时桶</span>
-        </div>
-        <div className="chart-wrap chart-wrap-echarts">
-          <MinuteDistributionChart distribution={minuteDistribution} />
-        </div>
-      </section>
-
-      <section className="card chart-card">
-        <div className="chart-head">
           <h2>小时极值时间段总结</h2>
           <span>直接看 Top3 时间段，并用横向条形图比较 12 个 5 分钟段的出现次数</span>
+          <span>样本数：{history.length} 个小时桶</span>
         </div>
         <MinuteDistributionSummary distribution={minuteDistribution} />
       </section>
