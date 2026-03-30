@@ -23,7 +23,10 @@ export default function App() {
   const [error, setError] = useState('');
   const [alertEnabled, setAlertEnabled] = useState(false);
   const [wsStatus, setWsStatus] = useState('connecting');
+  const [chartHovering, setChartHovering] = useState(false);
   const alertedRef = useRef(false);
+  const alertCooldownUntilRef = useRef(0);
+  const alertBurstTimerRef = useRef(null);
 
   useEffect(() => {
     const enableAlerting = async () => {
@@ -47,7 +50,9 @@ export default function App() {
       onSnapshot: (next) => {
         setSnapshot(next);
         setError('');
-        fetchHistory().then((rows) => setHistory(rows)).catch(() => {});
+        if (!chartHovering) {
+          fetchHistory().then((rows) => setHistory(rows)).catch(() => {});
+        }
       },
     });
 
@@ -60,6 +65,21 @@ export default function App() {
     fetchHistory()
       .then((next) => setHistory(next))
       .catch((err) => setError(err.message || '历史加载失败'));
+  }, []);
+
+  useEffect(() => {
+    if (!chartHovering) {
+      fetchHistory().then((next) => setHistory(next)).catch(() => {});
+    }
+  }, [chartHovering]);
+
+  useEffect(() => {
+    return () => {
+      if (alertBurstTimerRef.current) {
+        clearInterval(alertBurstTimerRef.current);
+        alertBurstTimerRef.current = null;
+      }
+    };
   }, []);
 
   const chartData = useMemo(
@@ -79,30 +99,61 @@ export default function App() {
     const spread = snapshot?.spreads?.shortBrentLongCl;
     if (spread == null) return;
     const crossed = spread > alertThreshold;
-    if (crossed && !alertedRef.current) {
+
+    const playBeepBurst = () => {
+      let count = 0;
+      const playOnce = () => {
+        try {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.type = 'triangle';
+          osc.frequency.value = 880;
+          gain.gain.value = 0.03;
+          osc.start();
+          setTimeout(() => {
+            osc.stop();
+            ctx.close();
+          }, 250);
+        } catch {}
+      };
+
+      playOnce();
+      alertBurstTimerRef.current = setInterval(() => {
+        count += 1;
+        if (count >= 5) {
+          clearInterval(alertBurstTimerRef.current);
+          alertBurstTimerRef.current = null;
+          return;
+        }
+        playOnce();
+      }, 1000);
+    };
+
+    if (crossed && !alertedRef.current && Date.now() >= alertCooldownUntilRef.current) {
       alertedRef.current = true;
+      alertCooldownUntilRef.current = Date.now() + 10_000;
+
       if (alertEnabled) {
         new Notification('价差提醒', {
           body: `BRENTOIL 做空现价 - CL 做多现价 = ${spread.toFixed(3)}，已超过阈值 ${alertThreshold.toFixed(3)}`,
         });
       }
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.type = 'triangle';
-        osc.frequency.value = 880;
-        gain.gain.value = 0.03;
-        osc.start();
-        setTimeout(() => {
-          osc.stop();
-          ctx.close();
-        }, 250);
-      } catch {}
+
+      if (!alertBurstTimerRef.current) {
+        playBeepBurst();
+      }
     }
-    if (!crossed) alertedRef.current = false;
+
+    if (!crossed) {
+      alertedRef.current = false;
+      if (alertBurstTimerRef.current) {
+        clearInterval(alertBurstTimerRef.current);
+        alertBurstTimerRef.current = null;
+      }
+    }
   }, [snapshot, alertEnabled, alertThreshold]);
   const latest = snapshot?.spreads ?? {};
   const wsBadge = wsStatus === 'connected' ? 'WS 实时' : wsStatus === 'connecting' ? 'WS 连接中' : 'WS 重连中';
@@ -182,7 +233,7 @@ export default function App() {
           <span>当前已记录 {history.length} 个小时桶</span>
         </div>
         <div className="chart-wrap chart-wrap-echarts">
-          <HistoryChart history={chartData} />
+          <HistoryChart history={chartData} freezeWhileHover={chartHovering} onHoverChange={setChartHovering} />
         </div>
       </section>
 

@@ -1,17 +1,23 @@
+import { useMemo, useRef } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { fmtPrice, fmtTime } from './utils';
 
-export default function HistoryChart({ history }) {
-  const data = history.map((item) => ({
-    bucket: item.bucket,
-    label: item.label,
-    maxTime: item.maxTime ?? item.time,
-    minTime: item.minTime ?? item.time,
-    maxValue: item.maxValue ?? item.value,
-    minValue: item.minValue ?? item.value,
-  }));
+export default function HistoryChart({ history, freezeWhileHover = false, onHoverChange }) {
+  const chartRef = useRef(null);
 
-  const option = {
+  const data = useMemo(
+    () => history.map((item) => ({
+      bucket: item.bucket,
+      label: item.label,
+      maxTime: item.maxTime ?? item.time,
+      minTime: item.minTime ?? item.time,
+      maxValue: item.maxValue ?? item.value,
+      minValue: item.minValue ?? item.value,
+    })),
+    [history]
+  );
+
+  const option = useMemo(() => ({
     backgroundColor: 'transparent',
     animation: false,
     grid: {
@@ -23,6 +29,10 @@ export default function HistoryChart({ history }) {
     },
     tooltip: {
       trigger: 'axis',
+      triggerOn: 'mousemove|click',
+      enterable: true,
+      alwaysShowContent: !!freezeWhileHover,
+      confine: true,
       backgroundColor: 'rgba(15,23,42,0.96)',
       borderColor: 'rgba(148,163,184,0.2)',
       textStyle: { color: '#e2e8f0' },
@@ -88,23 +98,43 @@ export default function HistoryChart({ history }) {
         name: '小时最大价差',
         type: 'line',
         smooth: false,
-        showSymbol: false,
+        showSymbol: true,
+        symbol: 'circle',
+        symbolSize: 6,
         itemStyle: { color: '#22c55e' },
         lineStyle: { width: 2, color: '#22c55e' },
         areaStyle: { color: 'rgba(34,197,94,0.10)' },
+        emphasis: { focus: 'series' },
         data: data.map((item) => ({ value: item.maxValue, ...item })),
       },
       {
         name: '小时最小价差',
         type: 'line',
         smooth: false,
-        showSymbol: false,
+        showSymbol: true,
+        symbol: 'circle',
+        symbolSize: 6,
         itemStyle: { color: '#f59e0b' },
         lineStyle: { width: 2, color: '#f59e0b' },
+        emphasis: { focus: 'series' },
         data: data.map((item) => ({ value: item.minValue, ...item })),
       },
     ],
+  }), [data, freezeWhileHover]);
+
+  const onEvents = {
+    mouseover: () => onHoverChange?.(true),
+    globalout: () => onHoverChange?.(false),
   };
 
-  return <ReactECharts option={option} style={{ width: '100%', height: 360 }} notMerge lazyUpdate />;
+  return (
+    <ReactECharts
+      ref={chartRef}
+      option={option}
+      style={{ width: '100%', height: 360 }}
+      notMerge={false}
+      lazyUpdate={false}
+      onEvents={onEvents}
+    />
+  );
 }
