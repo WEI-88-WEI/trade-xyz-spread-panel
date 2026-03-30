@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { PANEL_CONFIG } from './config';
 import HistoryChart from './HistoryChart';
 import MinuteDistributionChart from './MinuteDistributionChart';
-import MinuteDistributionHeatmap from './MinuteDistributionHeatmap';
+import MinuteDistributionSummary from './MinuteDistributionSummary';
 import { buildMinuteDistribution, fetchHistory, getRecentAverageThreshold } from './history';
 import { fmtHour, fmtPrice, fmtTime } from './utils';
 import { createPanelWebSocket } from './ws';
@@ -282,12 +282,10 @@ export default function App() {
 
       <section className="card chart-card">
         <div className="chart-head">
-          <h2>小时最高 / 最低价差时间段热力图</h2>
-          <span>颜色越深表示该 5 分钟段越常出现小时极值，适合快速看集中区域</span>
+          <h2>小时极值时间段总结</h2>
+          <span>直接看 Top3 时间段，并用横向条形图比较 12 个 5 分钟段的出现次数</span>
         </div>
-        <div className="chart-wrap chart-wrap-echarts">
-          <MinuteDistributionHeatmap distribution={minuteDistribution} />
-        </div>
+        <MinuteDistributionSummary distribution={minuteDistribution} />
       </section>
 
       <section className="card">

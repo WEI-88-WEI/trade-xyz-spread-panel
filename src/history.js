@@ -31,22 +31,46 @@ export function getRecentAverageThreshold(history, hours = 3) {
   return sum / recent.length;
 }
 
+function fmtBucketLabel(startMinute, endMinute) {
+  return `${String(startMinute).padStart(2, '0')}-${String(endMinute).padStart(2, '0')}`;
+}
+
+function getTopBuckets(buckets, topN = 3) {
+  return [...buckets]
+    .sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return a.index - b.index;
+    })
+    .slice(0, topN)
+    .map((item) => ({
+      ...item,
+      label: fmtBucketLabel(item.startMinute, item.endMinute),
+    }));
+}
+
 export function buildMinuteDistribution(history) {
   const maxBuckets = Array.from({ length: 12 }, (_, index) => ({
     index,
     startMinute: index * 5,
     endMinute: index * 5 + 4,
     count: 0,
+    label: fmtBucketLabel(index * 5, index * 5 + 4),
   }));
   const minBuckets = Array.from({ length: 12 }, (_, index) => ({
     index,
     startMinute: index * 5,
     endMinute: index * 5 + 4,
     count: 0,
+    label: fmtBucketLabel(index * 5, index * 5 + 4),
   }));
 
   if (!Array.isArray(history) || history.length === 0) {
-    return { maxBuckets, minBuckets };
+    return {
+      maxBuckets,
+      minBuckets,
+      maxTopBuckets: getTopBuckets(maxBuckets),
+      minTopBuckets: getTopBuckets(minBuckets),
+    };
   }
 
   for (const item of history) {
@@ -62,5 +86,10 @@ export function buildMinuteDistribution(history) {
     }
   }
 
-  return { maxBuckets, minBuckets };
+  return {
+    maxBuckets,
+    minBuckets,
+    maxTopBuckets: getTopBuckets(maxBuckets),
+    minTopBuckets: getTopBuckets(minBuckets),
+  };
 }
