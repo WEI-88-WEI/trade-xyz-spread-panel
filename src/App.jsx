@@ -271,7 +271,7 @@ export default function App() {
       <section className="card chart-card">
         <div className="chart-head">
           <h2>小时最高 / 最低价差出现分钟分布</h2>
-          <span>按北京时间每小时内的 00-59 分钟统计，观察极值更常落在哪些分钟</span>
+          <span>按北京时间每小时内的 12 个 5 分钟段统计，观察极值更常落在哪些时间段</span>
           <span>样本数：{history.length} 个小时桶</span>
         </div>
         <div className="chart-wrap chart-wrap-echarts">

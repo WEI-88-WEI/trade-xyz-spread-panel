@@ -32,8 +32,18 @@ export function getRecentAverageThreshold(history, hours = 3) {
 }
 
 export function buildMinuteDistribution(history) {
-  const maxBuckets = Array.from({ length: 60 }, (_, minute) => ({ minute, count: 0 }));
-  const minBuckets = Array.from({ length: 60 }, (_, minute) => ({ minute, count: 0 }));
+  const maxBuckets = Array.from({ length: 12 }, (_, index) => ({
+    index,
+    startMinute: index * 5,
+    endMinute: index * 5 + 4,
+    count: 0,
+  }));
+  const minBuckets = Array.from({ length: 12 }, (_, index) => ({
+    index,
+    startMinute: index * 5,
+    endMinute: index * 5 + 4,
+    count: 0,
+  }));
 
   if (!Array.isArray(history) || history.length === 0) {
     return { maxBuckets, minBuckets };
@@ -44,11 +54,11 @@ export function buildMinuteDistribution(history) {
     const minMinute = getMinuteOfHour(item?.minTime ?? item?.time);
 
     if (maxMinute != null) {
-      maxBuckets[maxMinute].count += 1;
+      maxBuckets[Math.floor(maxMinute / 5)].count += 1;
     }
 
     if (minMinute != null) {
-      minBuckets[minMinute].count += 1;
+      minBuckets[Math.floor(minMinute / 5)].count += 1;
     }
   }
 

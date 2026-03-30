@@ -1,15 +1,15 @@
 import { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 
-function fmtMinuteLabel(minute) {
-  return String(minute).padStart(2, '0');
+function fmtMinuteLabel(startMinute, endMinute) {
+  return `${String(startMinute).padStart(2, '0')}-${String(endMinute).padStart(2, '0')}`;
 }
 
 export default function MinuteDistributionChart({ distribution }) {
   const option = useMemo(() => {
     const maxBuckets = distribution?.maxBuckets ?? [];
     const minBuckets = distribution?.minBuckets ?? [];
-    const labels = Array.from({ length: 60 }, (_, minute) => fmtMinuteLabel(minute));
+    const labels = maxBuckets.map((item) => fmtMinuteLabel(item.startMinute, item.endMinute));
 
     return {
       backgroundColor: 'transparent',
