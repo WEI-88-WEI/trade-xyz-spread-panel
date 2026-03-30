@@ -1,9 +1,10 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { fmtPrice, fmtTime } from './utils';
 
-export default function HistoryChart({ history, freezeWhileHover = false, onHoverChange }) {
+export default function HistoryChart({ history }) {
   const chartRef = useRef(null);
+  const hoveredIndexRef = useRef(null);
 
   const data = useMemo(
     () => history.map((item) => ({
@@ -16,6 +17,21 @@ export default function HistoryChart({ history, freezeWhileHover = false, onHove
     })),
     [history]
   );
+
+  useEffect(() => {
+    const chart = chartRef.current?.getEchartsInstance?.();
+    if (!chart) return;
+    if (hoveredIndexRef.current == null) return;
+    if (hoveredIndexRef.current >= data.length) return;
+
+    chart.dispatchAction({
+      type: 'showTip',
+      seriesIndex: 0,
+      dataIndex: hoveredIndexRef.current,
+    });
+  }, [data]);
+
+  const zoomStart = data.length > 120 ? Math.max(0, 100 - (120 / data.length) * 100) : 0;
 
   const option = useMemo(() => ({
     backgroundColor: 'transparent',
@@ -31,8 +47,11 @@ export default function HistoryChart({ history, freezeWhileHover = false, onHove
       trigger: 'axis',
       triggerOn: 'mousemove|click',
       enterable: true,
-      alwaysShowContent: !!freezeWhileHover,
       confine: true,
+      axisPointer: {
+        type: 'cross',
+        snap: true,
+      },
       backgroundColor: 'rgba(15,23,42,0.96)',
       borderColor: 'rgba(148,163,184,0.2)',
       textStyle: { color: '#e2e8f0' },
@@ -78,18 +97,24 @@ export default function HistoryChart({ history, freezeWhileHover = false, onHove
     dataZoom: [
       {
         type: 'inside',
-        start: data.length > 120 ? 100 - (120 / data.length) * 100 : 0,
+        xAxisIndex: 0,
+        zoomOnMouseWheel: true,
+        moveOnMouseMove: true,
+        moveOnMouseWheel: false,
+        preventDefaultMouseMove: false,
+        start: zoomStart,
         end: 100,
       },
       {
         type: 'slider',
+        xAxisIndex: 0,
         height: 22,
         bottom: 24,
         borderColor: 'rgba(148,163,184,0.2)',
         fillerColor: 'rgba(56,189,248,0.18)',
         backgroundColor: 'rgba(15,23,42,0.68)',
         textStyle: { color: '#94a3b8' },
-        start: data.length > 120 ? 100 - (120 / data.length) * 100 : 0,
+        start: zoomStart,
         end: 100,
       },
     ],
@@ -120,11 +145,18 @@ export default function HistoryChart({ history, freezeWhileHover = false, onHove
         data: data.map((item) => ({ value: item.minValue, ...item })),
       },
     ],
-  }), [data, freezeWhileHover]);
+  }), [data, zoomStart]);
 
   const onEvents = {
-    mouseover: () => onHoverChange?.(true),
-    globalout: () => onHoverChange?.(false),
+    updateAxisPointer: (event) => {
+      const axisInfo = event?.axesInfo?.[0];
+      if (axisInfo?.value != null) {
+        hoveredIndexRef.current = axisInfo.value;
+      }
+    },
+    globalout: () => {
+      hoveredIndexRef.current = null;
+    },
   };
 
   return (

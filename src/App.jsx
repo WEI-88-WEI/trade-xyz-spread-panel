@@ -23,10 +23,9 @@ export default function App() {
   const [error, setError] = useState('');
   const [alertEnabled, setAlertEnabled] = useState(false);
   const [wsStatus, setWsStatus] = useState('connecting');
-  const [chartHovering, setChartHovering] = useState(false);
   const alertedRef = useRef(false);
   const alertCooldownUntilRef = useRef(0);
-  const alertBurstTimerRef = useRef(null);
+  const alertBurstTimeoutsRef = useRef([]);
 
   useEffect(() => {
     const enableAlerting = async () => {
@@ -50,9 +49,7 @@ export default function App() {
       onSnapshot: (next) => {
         setSnapshot(next);
         setError('');
-        if (!chartHovering) {
-          fetchHistory().then((rows) => setHistory(rows)).catch(() => {});
-        }
+        fetchHistory().then((rows) => setHistory(rows)).catch(() => {});
       },
     });
 
@@ -68,17 +65,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!chartHovering) {
-      fetchHistory().then((next) => setHistory(next)).catch(() => {});
-    }
-  }, [chartHovering]);
-
-  useEffect(() => {
     return () => {
-      if (alertBurstTimerRef.current) {
-        clearInterval(alertBurstTimerRef.current);
-        alertBurstTimerRef.current = null;
-      }
+      alertBurstTimeoutsRef.current.forEach((id) => clearTimeout(id));
+      alertBurstTimeoutsRef.current = [];
     };
   }, []);
 
@@ -101,7 +90,6 @@ export default function App() {
     const crossed = spread > alertThreshold;
 
     const playBeepBurst = () => {
-      let count = 0;
       const playOnce = () => {
         try {
           const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -120,16 +108,18 @@ export default function App() {
         } catch {}
       };
 
-      playOnce();
-      alertBurstTimerRef.current = setInterval(() => {
-        count += 1;
-        if (count >= 5) {
-          clearInterval(alertBurstTimerRef.current);
-          alertBurstTimerRef.current = null;
-          return;
-        }
-        playOnce();
-      }, 1000);
+      alertBurstTimeoutsRef.current.forEach((id) => clearTimeout(id));
+      alertBurstTimeoutsRef.current = [];
+
+      for (let i = 0; i < 6; i += 1) {
+        const timeoutId = setTimeout(() => {
+          playOnce();
+          if (i === 5) {
+            alertBurstTimeoutsRef.current = [];
+          }
+        }, i * 1000);
+        alertBurstTimeoutsRef.current.push(timeoutId);
+      }
     };
 
     if (crossed && !alertedRef.current && Date.now() >= alertCooldownUntilRef.current) {
@@ -142,17 +132,15 @@ export default function App() {
         });
       }
 
-      if (!alertBurstTimerRef.current) {
+      if (alertBurstTimeoutsRef.current.length === 0) {
         playBeepBurst();
       }
     }
 
     if (!crossed) {
       alertedRef.current = false;
-      if (alertBurstTimerRef.current) {
-        clearInterval(alertBurstTimerRef.current);
-        alertBurstTimerRef.current = null;
-      }
+      alertBurstTimeoutsRef.current.forEach((id) => clearTimeout(id));
+      alertBurstTimeoutsRef.current = [];
     }
   }, [snapshot, alertEnabled, alertThreshold]);
   const latest = snapshot?.spreads ?? {};
@@ -233,7 +221,7 @@ export default function App() {
           <span>当前已记录 {history.length} 个小时桶</span>
         </div>
         <div className="chart-wrap chart-wrap-echarts">
-          <HistoryChart history={chartData} freezeWhileHover={chartHovering} onHoverChange={setChartHovering} />
+          <HistoryChart history={chartData} />
         </div>
       </section>
 
