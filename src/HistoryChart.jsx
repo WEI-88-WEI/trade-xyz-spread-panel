@@ -131,7 +131,6 @@ export default function HistoryChart({ history }) {
         itemStyle: { color: '#22c55e' },
         lineStyle: { width: 2, color: '#22c55e' },
         areaStyle: { color: 'rgba(34,197,94,0.10)' },
-        emphasis: { focus: 'series' },
         data: data.map((item) => ({ value: item.maxValue, ...item })),
       },
       {
@@ -143,7 +142,6 @@ export default function HistoryChart({ history }) {
         symbolSize: 6,
         itemStyle: { color: '#f59e0b' },
         lineStyle: { width: 2, color: '#f59e0b' },
-        emphasis: { focus: 'series' },
         data: data.map((item) => ({ value: item.minValue, ...item })),
       },
     ],
