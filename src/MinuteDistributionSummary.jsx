@@ -108,11 +108,9 @@ export default function MinuteDistributionSummary({ distribution }) {
   const minTopBuckets = distribution?.minTopBuckets ?? [];
 
   return (
-    <div className="distribution-summary-layout">
-      <div className="distribution-summary-cards">
-        <SummaryList title="小时最高价差最常出现时间段" items={maxTopBuckets} tone="tone-green" />
-        <SummaryList title="小时最低价差最常出现时间段" items={minTopBuckets} tone="tone-amber" />
-      </div>
+    <div className="distribution-summary-layout distribution-summary-layout-3col">
+      <SummaryList title="小时最高价差最常出现时间段" items={maxTopBuckets} tone="tone-green" />
+      <SummaryList title="小时最低价差最常出现时间段" items={minTopBuckets} tone="tone-amber" />
       <div className="distribution-summary-chart">
         <ReactECharts option={option} style={{ width: '100%', height: 248 }} notMerge={false} lazyUpdate={false} />
       </div>
