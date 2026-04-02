@@ -1,0 +1,16 @@
+[Unit]
+Description=trade-xyz-spread-panel backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/ubuntu/.openclaw/workspace/trade-xyz-spread-panel
+ExecStart=/home/ubuntu/nvm/versions/node/v24.14.0/bin/node /home/ubuntu/.openclaw/workspace/trade-xyz-spread-panel/server/index.js
+Restart=always
+RestartSec=5
+User=ubuntu
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

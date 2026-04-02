@@ -250,6 +250,9 @@ dist/
 仓库内提供：
 
 - `deploy/trade-xyz-spread-panel.service`
+- `systemd.trade-xyz-spread-panel.service`
+
+当前服务器已经使用 systemd 托管该服务。
 
 当前 service 已使用这台机器的绝对 Node 路径：
 
