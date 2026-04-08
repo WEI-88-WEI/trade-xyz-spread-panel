@@ -42,7 +42,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const maybeRefreshHistory = () => {
+    const maybeRefreshHistory = (nextSnapshot) => {
+      const nextBucket = nextSnapshot?.historyBucket ?? (nextSnapshot?.ts ? new Date(nextSnapshot.ts).setUTCMinutes(0, 0, 0) : null);
+      const currentBucket = history.length ? history[history.length - 1]?.bucket ?? null : null;
+
+      if (nextBucket == null || nextBucket === currentBucket) {
+        return;
+      }
+
       fetchHistory()
         .then((rows) => {
           const latest = rows[rows.length - 1];
@@ -68,7 +75,7 @@ export default function App() {
       onSnapshot: (next) => {
         setSnapshot(next);
         setError('');
-        maybeRefreshHistory();
+        maybeRefreshHistory(next);
       },
     });
 
