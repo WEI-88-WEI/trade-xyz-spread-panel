@@ -329,7 +329,7 @@ export default function App() {
                   <td colSpan={5} className="empty-row">暂无历史记录</td>
                 </tr>
               ) : (
-                [...history].reverse().map((item) => (
+                [...history].reverse().slice(0, 48).map((item) => (
                   <tr key={item.bucket}>
                     <td>{fmtHour(item.bucket)}</td>
                     <td>{fmtTime(item.maxTime ?? item.time)}</td>
