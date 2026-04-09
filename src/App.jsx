@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { PANEL_CONFIG } from './config';
 import HistoryChart from './HistoryChart';
 import MinuteDistributionSummary from './MinuteDistributionSummary';
-import { buildMinuteDistribution, fetchHistory, getRecentAverageThreshold } from './history';
+import { buildMinuteDistribution, fetchHistory, getRecentAverageMinThreshold, getRecentAverageThreshold } from './history';
 import { fmtHour, fmtPrice, fmtTime } from './utils';
 import { createPanelWebSocket } from './ws';
 
@@ -24,8 +24,10 @@ export default function App() {
   const [error, setError] = useState('');
   const [alertEnabled, setAlertEnabled] = useState(false);
   const [wsStatus, setWsStatus] = useState('connecting');
-  const alertedRef = useRef(false);
-  const alertCooldownUntilRef = useRef(0);
+  const upperAlertedRef = useRef(false);
+  const lowerAlertedRef = useRef(false);
+  const upperAlertCooldownUntilRef = useRef(0);
+  const lowerAlertCooldownUntilRef = useRef(0);
   const alertBurstTimeoutsRef = useRef([]);
   const alertBurstActiveRef = useRef(false);
   const audioContextRef = useRef(null);
@@ -121,13 +123,17 @@ export default function App() {
   );
 
   const dynamicThreshold = useMemo(() => getRecentAverageThreshold(history, 3), [history]);
+  const dynamicMinThreshold = useMemo(() => getRecentAverageMinThreshold(history, 3), [history]);
   const minuteDistribution = useMemo(() => buildMinuteDistribution(history), [history]);
   const alertThreshold = dynamicThreshold ?? 6;
+  const minAlertThreshold = dynamicMinThreshold ?? 6;
 
   useEffect(() => {
     const spread = snapshot?.spreads?.shortBrentLongCl;
     if (spread == null) return;
-    const crossed = spread > alertThreshold;
+
+    const crossedUpper = spread > alertThreshold;
+    const crossedLower = spread < minAlertThreshold;
 
     const playBeepBurst = async () => {
       try {
@@ -174,13 +180,13 @@ export default function App() {
       }
     };
 
-    if (crossed && !alertedRef.current && Date.now() >= alertCooldownUntilRef.current) {
-      alertedRef.current = true;
-      alertCooldownUntilRef.current = Date.now() + 10_000;
+    if (crossedUpper && !upperAlertedRef.current && Date.now() >= upperAlertCooldownUntilRef.current) {
+      upperAlertedRef.current = true;
+      upperAlertCooldownUntilRef.current = Date.now() + 10_000;
 
       if (alertEnabled) {
-        new Notification('价差提醒', {
-          body: `BRENTOIL 做空现价 - CL 做多现价 = ${spread.toFixed(3)}，已超过阈值 ${alertThreshold.toFixed(3)}`,
+        new Notification('价差上穿提醒', {
+          body: `BRENTOIL 做空现价 - CL 做多现价 = ${spread.toFixed(3)}，已超过最近 3 小时最大价差均值阈值 ${alertThreshold.toFixed(3)}`,
         });
       }
 
@@ -189,10 +195,29 @@ export default function App() {
       }
     }
 
-    if (!crossed) {
-      alertedRef.current = false;
+    if (crossedLower && !lowerAlertedRef.current && Date.now() >= lowerAlertCooldownUntilRef.current) {
+      lowerAlertedRef.current = true;
+      lowerAlertCooldownUntilRef.current = Date.now() + 10_000;
+
+      if (alertEnabled) {
+        new Notification('价差下穿提醒', {
+          body: `BRENTOIL 做空现价 - CL 做多现价 = ${spread.toFixed(3)}，已低于最近 3 小时最小价差均值阈值 ${minAlertThreshold.toFixed(3)}`,
+        });
+      }
+
+      if (!alertBurstActiveRef.current) {
+        playBeepBurst();
+      }
     }
-  }, [snapshot, alertEnabled, alertThreshold]);
+
+    if (!crossedUpper) {
+      upperAlertedRef.current = false;
+    }
+
+    if (!crossedLower) {
+      lowerAlertedRef.current = false;
+    }
+  }, [snapshot, alertEnabled, alertThreshold, minAlertThreshold]);
   const latest = snapshot?.spreads ?? {};
   const wsBadge = wsStatus === 'connected' ? 'WS 实时' : wsStatus === 'connecting' ? 'WS 连接中' : 'WS 重连中';
 
@@ -208,7 +233,8 @@ export default function App() {
         </div>
         <div className="hero-meta">
           <div>模式：{wsBadge}</div>
-          <div>提醒阈值：{fmtPrice(alertThreshold)}（前3小时均值）</div>
+          <div>上穿阈值：{fmtPrice(alertThreshold)}（最近 3 小时最大价差均值）</div>
+          <div>下穿阈值：{fmtPrice(minAlertThreshold)}（最近 3 小时最小价差均值）</div>
           <div>历史窗口：{PANEL_CONFIG.historyHours} 小时</div>
           <div>最后更新：{fmtTime(snapshot?.ts)}</div>
         </div>
@@ -220,8 +246,8 @@ export default function App() {
         <StatCard
           title="BRENTOIL 做空现价 - CL 做多现价"
           value={fmtPrice(latest.shortBrentLongCl)}
-          hint="= BRENTOIL bid - CL ask"
-          highlight={latest.shortBrentLongCl > alertThreshold}
+          hint={`= BRENTOIL bid - CL ask｜上穿>${fmtPrice(alertThreshold)} / 下穿<${fmtPrice(minAlertThreshold)}`}
+          highlight={latest.shortBrentLongCl > alertThreshold || latest.shortBrentLongCl < minAlertThreshold}
         />
         <StatCard
           title="BRENTOIL 做多现价 - CL 做空现价"
@@ -257,8 +283,10 @@ export default function App() {
         <div className="card">
           <h2>提醒逻辑</h2>
           <ul className="list">
-            <li>条件：BRENTOIL 的做空现价减去 CL 的做多现价 &gt; 最近 3 小时均值</li>
+            <li>上穿提醒：BRENTOIL 的做空现价减去 CL 的做多现价 &gt; 最近 3 个小时桶最大价差均值</li>
+            <li>下穿提醒：BRENTOIL 的做空现价减去 CL 的做多现价 &lt; 最近 3 个小时桶最小价差均值</li>
             <li>现价定义：做空现价取 bid，做多现价取 ask</li>
+            <li>上下穿都采用一次触发 + 10 秒冷却；回到阈值另一侧后重新复位</li>
             <li>仅使用 WebSocket；若连接中断，页面会持续自动重连</li>
           </ul>
         </div>

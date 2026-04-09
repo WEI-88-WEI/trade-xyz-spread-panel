@@ -19,16 +19,25 @@ function getMinuteOfHour(ts) {
   return Number.isInteger(minute) && minute >= 0 && minute <= 59 ? minute : null;
 }
 
-export function getRecentAverageThreshold(history, hours = 3) {
+function getRecentAverage(history, selector, hours = 3) {
   if (!Array.isArray(history) || history.length === 0) return null;
+
   const recent = [...history]
-    .filter((item) => item?.maxValue != null || item?.value != null)
+    .filter((item) => selector(item) != null)
     .sort((a, b) => b.bucket - a.bucket)
     .slice(0, hours);
 
   if (recent.length === 0) return null;
-  const sum = recent.reduce((acc, item) => acc + Number(item.maxValue ?? item.value), 0);
+  const sum = recent.reduce((acc, item) => acc + Number(selector(item)), 0);
   return sum / recent.length;
+}
+
+export function getRecentAverageThreshold(history, hours = 3) {
+  return getRecentAverage(history, (item) => item?.maxValue ?? item?.value, hours);
+}
+
+export function getRecentAverageMinThreshold(history, hours = 3) {
+  return getRecentAverage(history, (item) => item?.minValue ?? item?.value, hours);
 }
 
 function fmtBucketLabel(startMinute, endMinute) {
