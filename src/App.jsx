@@ -283,8 +283,6 @@ export default function App() {
         <div className="card">
           <h2>提醒逻辑</h2>
           <ul className="list">
-            <li>上穿提醒：BRENTOIL 的做空现价减去 CL 的做多现价 &gt; 最近 3 个小时桶最大价差均值</li>
-            <li>下穿提醒：BRENTOIL 的做空现价减去 CL 的做多现价 &lt; 最近 3 个小时桶最小价差均值</li>
             <li>现价定义：做空现价取 bid，做多现价取 ask</li>
             <li>上下穿都采用一次触发 + 10 秒冷却；回到阈值另一侧后重新复位</li>
             <li>仅使用 WebSocket；若连接中断，页面会持续自动重连</li>
