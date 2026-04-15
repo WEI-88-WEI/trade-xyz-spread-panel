@@ -308,15 +308,6 @@ export default function App() {
 
       <section className="card chart-card">
         <div className="chart-head">
-          <h2>分钟级极值时间段总结</h2>
-          <span>基于最近 3 小时 minute-history，把分钟极值按每 5 分钟一个时间段做分布</span>
-          <span>样本数：{minuteHistory.length} 个分钟桶</span>
-        </div>
-        <MinuteExtremesSummary distribution={minuteExtremeDistribution} />
-      </section>
-
-      <section className="card chart-card">
-        <div className="chart-head">
           <h2>近一个月小时级最大 / 最小价差</h2>
           <span>记录维度：每小时保留该小时出现过的最大 / 最小「BRENTOIL bid - CL ask」</span>
           <span>当前已记录 {history.length} 个小时桶</span>
@@ -324,6 +315,15 @@ export default function App() {
         <div className="chart-wrap chart-wrap-echarts">
           <HistoryChart history={chartData} />
         </div>
+      </section>
+
+      <section className="card chart-card">
+        <div className="chart-head">
+          <h2>分钟级极值时间段总结</h2>
+          <span>基于最近 3 小时 minute-history，把分钟极值按每 5 分钟一个时间段做分布</span>
+          <span>样本数：{minuteHistory.length} 个分钟桶</span>
+        </div>
+        <MinuteExtremesSummary distribution={minuteExtremeDistribution} />
       </section>
 
       <section className="card chart-card">
