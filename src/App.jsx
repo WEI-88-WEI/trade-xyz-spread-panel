@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { PANEL_CONFIG } from './config';
 import HistoryChart from './HistoryChart';
 import MinuteDistributionSummary from './MinuteDistributionSummary';
+import MinuteExtremesSummary from './MinuteExtremesSummary';
 import { buildMinuteDistribution, fetchHistory, getRecentAverageMinThreshold, getRecentAverageThreshold } from './history';
+import { fetchMinuteHistory, buildMinuteExtremeDistribution } from './minuteHistory';
 import { fmtHour, fmtPrice, fmtTime } from './utils';
 import { createPanelWebSocket } from './ws';
 
@@ -21,6 +23,7 @@ function StatCard({ title, value, hint, highlight = false }) {
 export default function App() {
   const [snapshot, setSnapshot] = useState(emptySnapshot);
   const [history, setHistory] = useState([]);
+  const [minuteHistory, setMinuteHistory] = useState([]);
   const [error, setError] = useState('');
   const [alertEnabled, setAlertEnabled] = useState(false);
   const [wsStatus, setWsStatus] = useState('connecting');
@@ -64,6 +67,12 @@ export default function App() {
           }
         })
         .catch(() => {});
+
+      fetchMinuteHistory()
+        .then((rows) => {
+          setMinuteHistory(rows);
+        })
+        .catch(() => {});
     };
 
     const stop = createPanelWebSocket({
@@ -98,6 +107,12 @@ export default function App() {
         setHistory(next);
       })
       .catch((err) => setError(err.message || '历史加载失败'));
+
+    fetchMinuteHistory()
+      .then((next) => {
+        setMinuteHistory(next);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -125,6 +140,7 @@ export default function App() {
   const dynamicThreshold = useMemo(() => getRecentAverageThreshold(history, 3), [history]);
   const dynamicMinThreshold = useMemo(() => getRecentAverageMinThreshold(history, 3), [history]);
   const minuteDistribution = useMemo(() => buildMinuteDistribution(history), [history]);
+  const minuteExtremeDistribution = useMemo(() => buildMinuteExtremeDistribution(minuteHistory), [minuteHistory]);
   const alertThreshold = dynamicThreshold ?? 6;
   const minAlertThreshold = dynamicMinThreshold ?? 6;
 
@@ -288,6 +304,15 @@ export default function App() {
             <li>仅使用 WebSocket；若连接中断，页面会持续自动重连</li>
           </ul>
         </div>
+      </section>
+
+      <section className="card chart-card">
+        <div className="chart-head">
+          <h2>分钟级极值时间段总结</h2>
+          <span>基于最近 3 小时 minute-history，把分钟极值按每 5 分钟一个时间段做分布</span>
+          <span>样本数：{minuteHistory.length} 个分钟桶</span>
+        </div>
+        <MinuteExtremesSummary distribution={minuteExtremeDistribution} />
       </section>
 
       <section className="card chart-card">
