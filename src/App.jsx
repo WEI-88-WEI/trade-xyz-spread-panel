@@ -8,9 +8,9 @@ import { createPanelWebSocket } from './ws';
 
 const emptySnapshot = null;
 
-function StatCard({ title, value, hint, highlight = false, tone = 'default' }) {
+function StatCard({ title, value, hint, highlight = false }) {
   return (
-    <div className={`card stat-card tone-${tone} ${highlight ? 'highlight' : ''}`}>
+    <div className={`card stat-card ${highlight ? 'highlight' : ''}`}>
       <div className="stat-title">{title}</div>
       <div className="stat-value">{value}</div>
       <div className="stat-hint">{hint}</div>
@@ -127,13 +127,6 @@ export default function App() {
   const minuteDistribution = useMemo(() => buildMinuteDistribution(history), [history]);
   const alertThreshold = dynamicThreshold ?? 6;
   const minAlertThreshold = dynamicMinThreshold ?? 6;
-  const shortSpread = latest.shortBrentLongCl;
-  const upperDistance = shortSpread != null ? shortSpread - alertThreshold : null;
-  const lowerDistance = shortSpread != null ? shortSpread - minAlertThreshold : null;
-  const latestBucket = history.length ? history[history.length - 1] : null;
-  const latestBucketRange = latestBucket
-    ? `${fmtPrice(latestBucket.minValue ?? latestBucket.value)} → ${fmtPrice(latestBucket.maxValue ?? latestBucket.value)}`
-    : '—';
 
   useEffect(() => {
     const spread = snapshot?.spreads?.shortBrentLongCl;
@@ -249,37 +242,13 @@ export default function App() {
 
       {error ? <div className="error">{error}</div> : null}
 
-      <section className="grid grid-4">
+      <section className="grid grid-3">
         <StatCard
           title="BRENTOIL 做空现价 - CL 做多现价"
           value={fmtPrice(latest.shortBrentLongCl)}
           hint={`= BRENTOIL bid - CL ask｜上穿>${fmtPrice(alertThreshold)} / 下穿<${fmtPrice(minAlertThreshold)}`}
           highlight={latest.shortBrentLongCl > alertThreshold || latest.shortBrentLongCl < minAlertThreshold}
-          tone="primary"
         />
-        <StatCard
-          title="距上穿阈值"
-          value={fmtPrice(upperDistance)}
-          hint={upperDistance == null ? '等待实时价差' : upperDistance >= 0 ? '已在上穿阈值上方' : '负值表示还差多少触发上穿'}
-          highlight={upperDistance != null && upperDistance >= 0}
-          tone={upperDistance != null && upperDistance >= 0 ? 'danger' : 'default'}
-        />
-        <StatCard
-          title="距下穿阈值"
-          value={fmtPrice(lowerDistance)}
-          hint={lowerDistance == null ? '等待实时价差' : lowerDistance <= 0 ? '已在下穿阈值下方' : '正值表示距离下穿还剩多少'}
-          highlight={lowerDistance != null && lowerDistance <= 0}
-          tone={lowerDistance != null && lowerDistance <= 0 ? 'danger' : 'default'}
-        />
-        <StatCard
-          title="当前小时已走区间"
-          value={latestBucketRange}
-          hint={latestBucket ? `小时桶：${fmtHour(latestBucket.bucket)}` : '等待小时历史'}
-          tone="subtle"
-        />
-      </section>
-
-      <section className="grid grid-2 compact-stat-grid">
         <StatCard
           title="BRENTOIL 做多现价 - CL 做空现价"
           value={fmtPrice(latest.longBrentShortCl)}
