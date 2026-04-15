@@ -1,6 +1,13 @@
 import express from 'express';
 import { WebSocketServer, WebSocket } from 'ws';
-import { loadHistory, saveHistory, updateHourlyHistory } from './historyStore.js';
+import {
+  loadHistory,
+  loadMinuteHistory,
+  saveHistory,
+  saveMinuteHistory,
+  updateHourlyHistory,
+  updateMinuteHistory,
+} from './historyStore.js';
 
 const PORT = Number(process.env.PORT || 8787);
 const HL_WS_URL = 'wss://api.hyperliquid.xyz/ws';
@@ -13,6 +20,9 @@ app.get('/health', (_req, res) => {
 app.get('/history', (_req, res) => {
   res.json({ ok: true, history: state.history });
 });
+app.get('/minute-history', (_req, res) => {
+  res.json({ ok: true, history: state.minuteHistory });
+});
 app.listen(PORT, () => {
   console.log(`[server] health endpoint on http://localhost:${PORT}/health`);
 });
@@ -21,16 +31,20 @@ const clientWss = new WebSocketServer({ port: PORT + 1 });
 console.log(`[server] client websocket on ws://localhost:${PORT + 1}`);
 
 const initialHistory = loadHistory();
+const initialMinuteHistory = loadMinuteHistory();
 
 const state = {
   books: {},
   mids: {},
   latest: null,
   history: initialHistory,
+  minuteHistory: initialMinuteHistory,
   lastSavedHistorySignature: '',
+  lastSavedMinuteHistorySignature: '',
 };
 
 state.lastSavedHistorySignature = getHistorySignature(state.history);
+state.lastSavedMinuteHistorySignature = getMinuteHistorySignature(state.minuteHistory);
 
 function topOfBook(book) {
   const bids = book?.levels?.[0] ?? [];
@@ -51,6 +65,18 @@ function getHistorySignature(history) {
     latest.minValue ?? latest.value ?? 'na',
     latest.maxTime ?? latest.time ?? 'na',
     latest.minTime ?? latest.time ?? 'na',
+  ].join('|');
+}
+
+function getMinuteHistorySignature(history) {
+  const latest = history[history.length - 1];
+  if (!latest) return 'empty';
+  return [
+    history.length,
+    latest.bucket,
+    latest.shortBrentLongCl ?? 'na',
+    latest.longBrentShortCl ?? 'na',
+    latest.midMid ?? 'na',
   ].join('|');
 }
 
@@ -75,11 +101,18 @@ function buildSnapshot() {
 
   state.latest = snapshot;
   state.history = updateHourlyHistory(state.history, snapshot);
+  state.minuteHistory = updateMinuteHistory(state.minuteHistory, snapshot);
 
   const nextHistorySignature = getHistorySignature(state.history);
   if (nextHistorySignature !== state.lastSavedHistorySignature) {
     saveHistory(state.history);
     state.lastSavedHistorySignature = nextHistorySignature;
+  }
+
+  const nextMinuteHistorySignature = getMinuteHistorySignature(state.minuteHistory);
+  if (nextMinuteHistorySignature !== state.lastSavedMinuteHistorySignature) {
+    saveMinuteHistory(state.minuteHistory);
+    state.lastSavedMinuteHistorySignature = nextMinuteHistorySignature;
   }
 
   return snapshot;
