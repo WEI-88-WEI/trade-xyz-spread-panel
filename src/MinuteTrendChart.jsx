@@ -5,21 +5,23 @@ import { fmtPrice, fmtTime } from './utils';
 export default function MinuteTrendChart({ history, alertThreshold, minAlertThreshold }) {
   const data = useMemo(() => history
     .map((item) => {
-      const spread = item?.brentBid != null && item?.clAsk != null ? item.brentBid - item.clAsk : null;
-      if (spread == null) return null;
+      const maxSpread = item?.maxShortBrentLongCl;
+      const minSpread = item?.minShortBrentLongCl;
+      if (maxSpread == null && minSpread == null) return null;
       return {
         ...item,
-        spread,
+        maxSpread,
+        minSpread,
       };
     })
     .filter(Boolean), [history]);
 
   const currentHourBucket = data.length ? new Date(data[data.length - 1].bucket).setUTCMinutes(0, 0, 0) : null;
   const currentHourRows = currentHourBucket == null ? [] : data.filter((item) => new Date(item.bucket).setUTCMinutes(0, 0, 0) === currentHourBucket);
-  const recentHigh = data.length ? Math.max(...data.map((item) => item.spread)) : null;
-  const recentLow = data.length ? Math.min(...data.map((item) => item.spread)) : null;
-  const currentHourHigh = currentHourRows.length ? Math.max(...currentHourRows.map((item) => item.spread)) : null;
-  const currentHourLow = currentHourRows.length ? Math.min(...currentHourRows.map((item) => item.spread)) : null;
+  const recentHigh = data.length ? Math.max(...data.map((item) => item.maxSpread).filter((value) => value != null)) : null;
+  const recentLow = data.length ? Math.min(...data.map((item) => item.minSpread).filter((value) => value != null)) : null;
+  const currentHourHigh = currentHourRows.length ? Math.max(...currentHourRows.map((item) => item.maxSpread).filter((value) => value != null)) : null;
+  const currentHourLow = currentHourRows.length ? Math.min(...currentHourRows.map((item) => item.minSpread).filter((value) => value != null)) : null;
 
   const option = useMemo(() => ({
     backgroundColor: 'transparent',
@@ -40,21 +42,21 @@ export default function MinuteTrendChart({ history, alertThreshold, minAlertThre
       borderColor: 'rgba(148,163,184,0.2)',
       textStyle: { color: '#e2e8f0' },
       formatter(params) {
-        const row = params?.[0]?.data;
+        const row = params?.find((item) => item?.data?.bucket != null)?.data;
         if (!row) return '';
         return [
           `<div>${fmtTime(row.bucket)}</div>`,
-          `<div style="margin-top:6px;color:#38bdf8;">主价差：${fmtPrice(row.spread)}</div>`,
+          `<div style="margin-top:6px;color:#22c55e;">分钟最大价差：${fmtPrice(row.maxSpread)}</div>`,
+          `<div style="color:#f59e0b;">分钟最小价差：${fmtPrice(row.minSpread)}</div>`,
           `<div>BRENTOIL bid / ask：${fmtPrice(row.brentBid)} / ${fmtPrice(row.brentAsk)}</div>`,
           `<div>CL bid / ask：${fmtPrice(row.clBid)} / ${fmtPrice(row.clAsk)}</div>`,
-          `<div>该分钟 max / min：${fmtPrice(row.maxShortBrentLongCl)} / ${fmtPrice(row.minShortBrentLongCl)}</div>`,
         ].join('');
       },
     },
     legend: {
       top: 0,
       textStyle: { color: '#cbd5e1' },
-      data: ['分钟主价差', '近3小时高点', '近3小时低点', '当前小时高点', '当前小时低点', '上穿阈值', '下穿阈值'],
+      data: ['分钟最大价差', '分钟最小价差', '近3小时高点', '近3小时低点', '当前小时高点', '当前小时低点', '上穿阈值', '下穿阈值'],
     },
     xAxis: {
       type: 'category',
@@ -101,16 +103,28 @@ export default function MinuteTrendChart({ history, alertThreshold, minAlertThre
     ],
     series: [
       {
-        name: '分钟主价差',
+        name: '分钟最大价差',
         type: 'line',
         smooth: false,
         showSymbol: true,
         symbol: 'circle',
         symbolSize: 5,
-        itemStyle: { color: '#38bdf8' },
-        lineStyle: { width: 2, color: '#38bdf8' },
-        areaStyle: { color: 'rgba(56,189,248,0.10)' },
-        data: data.map((item) => ({ value: item.spread, ...item })),
+        itemStyle: { color: '#22c55e' },
+        lineStyle: { width: 2, color: '#22c55e' },
+        areaStyle: { color: 'rgba(34,197,94,0.08)' },
+        data: data.map((item) => ({ value: item.maxSpread, ...item })),
+      },
+      {
+        name: '分钟最小价差',
+        type: 'line',
+        smooth: false,
+        showSymbol: true,
+        symbol: 'circle',
+        symbolSize: 5,
+        itemStyle: { color: '#f59e0b' },
+        lineStyle: { width: 2, color: '#f59e0b' },
+        areaStyle: { color: 'rgba(245,158,11,0.06)' },
+        data: data.map((item) => ({ value: item.minSpread, ...item })),
       },
       {
         name: '近3小时高点',
