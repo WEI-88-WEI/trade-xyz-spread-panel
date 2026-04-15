@@ -78,6 +78,8 @@ function getMinuteHistorySignature(history) {
     latest.brentAsk ?? 'na',
     latest.clBid ?? 'na',
     latest.clAsk ?? 'na',
+    latest.maxShortBrentLongCl ?? 'na',
+    latest.minShortBrentLongCl ?? 'na',
   ].join('|');
 }
 

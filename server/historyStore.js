@@ -65,10 +65,11 @@ export function updateMinuteHistory(history, snapshot) {
   const brentAsk = snapshot?.brent?.ask ?? null;
   const clBid = snapshot?.cl?.bid ?? null;
   const clAsk = snapshot?.cl?.ask ?? null;
+  const shortSpread = snapshot?.spreads?.shortBrentLongCl ?? null;
 
   const filtered = Array.isArray(history) ? history.filter((item) => now - item.bucket <= maxAgeMs) : [];
 
-  if (brentBid == null && brentAsk == null && clBid == null && clAsk == null) {
+  if (brentBid == null && brentAsk == null && clBid == null && clAsk == null && shortSpread == null) {
     return filtered;
   }
 
@@ -81,12 +82,33 @@ export function updateMinuteHistory(history, snapshot) {
     brentAsk,
     clBid,
     clAsk,
+    maxShortBrentLongCl: shortSpread,
+    minShortBrentLongCl: shortSpread,
   };
 
   if (index === -1) {
     next.push(candidate);
   } else {
-    next[index] = candidate;
+    const current = next[index];
+    const updated = {
+      ...current,
+      ts: snapshot.ts,
+      brentBid,
+      brentAsk,
+      clBid,
+      clAsk,
+    };
+
+    if (shortSpread != null) {
+      if (updated.maxShortBrentLongCl == null || shortSpread > updated.maxShortBrentLongCl) {
+        updated.maxShortBrentLongCl = shortSpread;
+      }
+      if (updated.minShortBrentLongCl == null || shortSpread < updated.minShortBrentLongCl) {
+        updated.minShortBrentLongCl = shortSpread;
+      }
+    }
+
+    next[index] = updated;
   }
 
   return next
