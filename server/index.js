@@ -20,12 +20,17 @@ app.listen(PORT, () => {
 const clientWss = new WebSocketServer({ port: PORT + 1 });
 console.log(`[server] client websocket on ws://localhost:${PORT + 1}`);
 
+const initialHistory = loadHistory();
+
 const state = {
   books: {},
   mids: {},
   latest: null,
-  history: loadHistory(),
+  history: initialHistory,
+  lastSavedHistorySignature: '',
 };
+
+state.lastSavedHistorySignature = getHistorySignature(state.history);
 
 function topOfBook(book) {
   const bids = book?.levels?.[0] ?? [];
@@ -34,6 +39,19 @@ function topOfBook(book) {
   const ask = asks.length ? Number(asks[0].px) : null;
   const mid = bid != null && ask != null ? (bid + ask) / 2 : null;
   return { bid, ask, mid, time: book?.time ?? Date.now(), spread: book?.spread ?? null };
+}
+
+function getHistorySignature(history) {
+  const latest = history[history.length - 1];
+  if (!latest) return 'empty';
+  return [
+    history.length,
+    latest.bucket,
+    latest.maxValue ?? latest.value ?? 'na',
+    latest.minValue ?? latest.value ?? 'na',
+    latest.maxTime ?? latest.time ?? 'na',
+    latest.minTime ?? latest.time ?? 'na',
+  ].join('|');
 }
 
 function buildSnapshot() {
@@ -45,6 +63,7 @@ function buildSnapshot() {
   const snapshot = {
     ts: Date.now(),
     source: 'ws',
+    historyBucket: new Date().setUTCMinutes(0, 0, 0),
     brent,
     cl,
     spreads: {
@@ -53,9 +72,16 @@ function buildSnapshot() {
       midMid: brent.mid != null && cl.mid != null ? brent.mid - cl.mid : null,
     },
   };
+
   state.latest = snapshot;
   state.history = updateHourlyHistory(state.history, snapshot);
-  saveHistory(state.history);
+
+  const nextHistorySignature = getHistorySignature(state.history);
+  if (nextHistorySignature !== state.lastSavedHistorySignature) {
+    saveHistory(state.history);
+    state.lastSavedHistorySignature = nextHistorySignature;
+  }
+
   return snapshot;
 }
 
