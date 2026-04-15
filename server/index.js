@@ -74,9 +74,10 @@ function getMinuteHistorySignature(history) {
   return [
     history.length,
     latest.bucket,
-    latest.shortBrentLongCl ?? 'na',
-    latest.longBrentShortCl ?? 'na',
-    latest.midMid ?? 'na',
+    latest.brentBid ?? 'na',
+    latest.brentAsk ?? 'na',
+    latest.clBid ?? 'na',
+    latest.clAsk ?? 'na',
   ].join('|');
 }
 

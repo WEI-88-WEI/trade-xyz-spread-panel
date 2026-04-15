@@ -61,13 +61,14 @@ export function updateMinuteHistory(history, snapshot) {
   const maxAgeMs = MINUTE_HISTORY_HOURS * 60 * 60 * 1000;
   const now = Date.now();
   const bucket = minuteBucket(snapshot.ts);
-  const shortSpread = snapshot?.spreads?.shortBrentLongCl;
-  const longSpread = snapshot?.spreads?.longBrentShortCl;
-  const midSpread = snapshot?.spreads?.midMid;
+  const brentBid = snapshot?.brent?.bid ?? null;
+  const brentAsk = snapshot?.brent?.ask ?? null;
+  const clBid = snapshot?.cl?.bid ?? null;
+  const clAsk = snapshot?.cl?.ask ?? null;
 
   const filtered = Array.isArray(history) ? history.filter((item) => now - item.bucket <= maxAgeMs) : [];
 
-  if (shortSpread == null && longSpread == null && midSpread == null) {
+  if (brentBid == null && brentAsk == null && clBid == null && clAsk == null) {
     return filtered;
   }
 
@@ -76,13 +77,10 @@ export function updateMinuteHistory(history, snapshot) {
   const candidate = {
     bucket,
     ts: snapshot.ts,
-    shortBrentLongCl: shortSpread,
-    longBrentShortCl: longSpread,
-    midMid: midSpread,
-    brentBid: snapshot?.brent?.bid ?? null,
-    brentAsk: snapshot?.brent?.ask ?? null,
-    clBid: snapshot?.cl?.bid ?? null,
-    clAsk: snapshot?.cl?.ask ?? null,
+    brentBid,
+    brentAsk,
+    clBid,
+    clAsk,
   };
 
   if (index === -1) {
