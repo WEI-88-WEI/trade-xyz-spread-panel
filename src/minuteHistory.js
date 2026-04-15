@@ -36,7 +36,7 @@ function getTopBuckets(buckets, topN = 3) {
     }));
 }
 
-export function buildMinuteExtremeDistribution(history) {
+export function buildMinuteExtremeDistribution(history, lookbackMinutes = 60) {
   const maxBuckets = Array.from({ length: 12 }, (_, index) => ({
     index,
     startMinute: index * 5,
@@ -58,19 +58,50 @@ export function buildMinuteExtremeDistribution(history) {
       minBuckets,
       maxTopBuckets: getTopBuckets(maxBuckets),
       minTopBuckets: getTopBuckets(minBuckets),
+      maxEventCount: 0,
+      minEventCount: 0,
+      lookbackMinutes,
     };
   }
 
-  for (const item of history) {
+  const sorted = [...history]
+    .filter((item) => item?.bucket != null)
+    .sort((a, b) => a.bucket - b.bucket);
+
+  let maxEventCount = 0;
+  let minEventCount = 0;
+
+  for (let i = 0; i < sorted.length; i += 1) {
+    const item = sorted[i];
     const minute = getMinuteOfHour(item?.bucket ?? item?.ts);
     if (minute == null) continue;
 
+    const currentMax = item?.maxShortBrentLongCl;
+    const currentMin = item?.minShortBrentLongCl;
+
+    const windowStart = item.bucket - lookbackMinutes * 60 * 1000;
+    const prior = sorted.slice(0, i).filter((row) => row.bucket >= windowStart);
+
+    const priorHigh = prior.reduce((acc, row) => {
+      const value = row?.maxShortBrentLongCl;
+      return value != null && (acc == null || value > acc) ? value : acc;
+    }, null);
+
+    const priorLow = prior.reduce((acc, row) => {
+      const value = row?.minShortBrentLongCl;
+      return value != null && (acc == null || value < acc) ? value : acc;
+    }, null);
+
     const bucketIndex = Math.floor(minute / 5);
-    if (item?.maxShortBrentLongCl != null) {
+
+    if (currentMax != null && priorHigh != null && currentMax > priorHigh) {
       maxBuckets[bucketIndex].count += 1;
+      maxEventCount += 1;
     }
-    if (item?.minShortBrentLongCl != null) {
+
+    if (currentMin != null && priorLow != null && currentMin < priorLow) {
       minBuckets[bucketIndex].count += 1;
+      minEventCount += 1;
     }
   }
 
@@ -79,5 +110,8 @@ export function buildMinuteExtremeDistribution(history) {
     minBuckets,
     maxTopBuckets: getTopBuckets(maxBuckets),
     minTopBuckets: getTopBuckets(minBuckets),
+    maxEventCount,
+    minEventCount,
+    lookbackMinutes,
   };
 }

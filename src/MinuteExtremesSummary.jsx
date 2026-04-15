@@ -10,7 +10,7 @@ function SummaryList({ title, items, tone }) {
           <li key={`${title}-${item.label}-${index}`}>
             <span className="distribution-summary-rank">Top {index + 1}</span>
             <span className="distribution-summary-label">{item.label} 分钟段</span>
-            <span className="distribution-summary-count">{item.count} 个分钟桶</span>
+            <span className="distribution-summary-count">{item.count} 次突破</span>
           </li>
         ))}
       </ol>
@@ -75,7 +75,7 @@ export default function MinuteExtremesSummary({ distribution }) {
       ],
       series: [
         {
-          name: '分钟内最大价差分布',
+          name: '分钟级向上突破分布',
           type: 'bar',
           xAxisIndex: 0,
           yAxisIndex: 0,
@@ -84,7 +84,7 @@ export default function MinuteExtremesSummary({ distribution }) {
           data: maxBuckets.map((item) => item.count),
         },
         {
-          name: '分钟内最小价差分布',
+          name: '分钟级向下突破分布',
           type: 'bar',
           xAxisIndex: 1,
           yAxisIndex: 1,
@@ -98,13 +98,20 @@ export default function MinuteExtremesSummary({ distribution }) {
 
   const maxTopBuckets = distribution?.maxTopBuckets ?? [];
   const minTopBuckets = distribution?.minTopBuckets ?? [];
+  const lookbackMinutes = distribution?.lookbackMinutes ?? 60;
+  const maxEventCount = distribution?.maxEventCount ?? 0;
+  const minEventCount = distribution?.minEventCount ?? 0;
 
   return (
     <div className="distribution-summary-layout distribution-summary-layout-3col">
-      <SummaryList title="分钟级最大价差最常出现时间段" items={maxTopBuckets} tone="tone-green" />
-      <SummaryList title="分钟级最小价差最常出现时间段" items={minTopBuckets} tone="tone-amber" />
+      <SummaryList title={`分钟级向上突破最常出现时间段（近 ${lookbackMinutes} 分钟窗口）`} items={maxTopBuckets} tone="tone-green" />
+      <SummaryList title={`分钟级向下突破最常出现时间段（近 ${lookbackMinutes} 分钟窗口）`} items={minTopBuckets} tone="tone-amber" />
       <div className="distribution-summary-chart">
         <ReactECharts option={option} style={{ width: '100%', height: 248 }} notMerge={false} lazyUpdate={false} />
+        <div className="distribution-summary-meta">
+          <span>向上突破：{maxEventCount} 次</span>
+          <span>向下突破：{minEventCount} 次</span>
+        </div>
       </div>
     </div>
   );

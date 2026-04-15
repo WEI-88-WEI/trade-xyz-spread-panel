@@ -319,8 +319,8 @@ export default function App() {
 
       <section className="card chart-card">
         <div className="chart-head">
-          <h2>分钟级极值时间段总结</h2>
-          <span>基于最近 3 小时 minute-history，把分钟极值按每 5 分钟一个时间段做分布</span>
+          <h2>分钟级突破时间段总结</h2>
+          <span>基于最近 3 小时 minute-history，统计创最近 60 分钟新高 / 新低的突破事件分布</span>
           <span>样本数：{minuteHistory.length} 个分钟桶</span>
         </div>
         <MinuteExtremesSummary distribution={minuteExtremeDistribution} />
