@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { PANEL_CONFIG } from './config';
 import HistoryChart from './HistoryChart';
+import MinuteTrendChart from './MinuteTrendChart';
 import MinuteDistributionSummary from './MinuteDistributionSummary';
-import MinuteExtremesSummary from './MinuteExtremesSummary';
 import { buildMinuteDistribution, fetchHistory, getRecentAverageMinThreshold, getRecentAverageThreshold } from './history';
-import { fetchMinuteHistory, buildMinuteExtremeDistribution } from './minuteHistory';
+import { fetchMinuteHistory } from './minuteHistory';
 import { fmtHour, fmtPrice, fmtTime } from './utils';
 import { createPanelWebSocket } from './ws';
 
@@ -140,7 +140,6 @@ export default function App() {
   const dynamicThreshold = useMemo(() => getRecentAverageThreshold(history, 3), [history]);
   const dynamicMinThreshold = useMemo(() => getRecentAverageMinThreshold(history, 3), [history]);
   const minuteDistribution = useMemo(() => buildMinuteDistribution(history), [history]);
-  const minuteExtremeDistribution = useMemo(() => buildMinuteExtremeDistribution(minuteHistory), [minuteHistory]);
   const alertThreshold = dynamicThreshold ?? 6;
   const minAlertThreshold = dynamicMinThreshold ?? 6;
 
@@ -308,6 +307,17 @@ export default function App() {
 
       <section className="card chart-card">
         <div className="chart-head">
+          <h2>最近 3 小时分钟级主价差走势</h2>
+          <span>基于 minute-history 直接计算 BRENTOIL bid - CL ask，并叠加近 3 小时 / 当前小时高低点与动态阈值</span>
+          <span>样本数：{minuteHistory.length} 个分钟桶</span>
+        </div>
+        <div className="chart-wrap chart-wrap-echarts">
+          <MinuteTrendChart history={minuteHistory} alertThreshold={alertThreshold} minAlertThreshold={minAlertThreshold} />
+        </div>
+      </section>
+
+      <section className="card chart-card">
+        <div className="chart-head">
           <h2>近一个月小时级最大 / 最小价差</h2>
           <span>记录维度：每小时保留该小时出现过的最大 / 最小「BRENTOIL bid - CL ask」</span>
           <span>当前已记录 {history.length} 个小时桶</span>
@@ -315,15 +325,6 @@ export default function App() {
         <div className="chart-wrap chart-wrap-echarts">
           <HistoryChart history={chartData} />
         </div>
-      </section>
-
-      <section className="card chart-card">
-        <div className="chart-head">
-          <h2>分钟级突破时间段总结</h2>
-          <span>基于最近 3 小时 minute-history，统计创最近 60 分钟新高 / 新低的突破事件分布</span>
-          <span>样本数：{minuteHistory.length} 个分钟桶</span>
-        </div>
-        <MinuteExtremesSummary distribution={minuteExtremeDistribution} />
       </section>
 
       <section className="card chart-card">
