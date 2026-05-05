@@ -12,6 +12,8 @@ import {
 const PORT = Number(process.env.PORT || 8787);
 const HL_WS_URL = 'wss://api.hyperliquid.xyz/ws';
 const COINS = ['xyz:BRENTOIL', 'xyz:CL'];
+const UPSTREAM_STALE_MS = Number(process.env.UPSTREAM_STALE_MS || 30_000);
+const UPSTREAM_CHECK_MS = Number(process.env.UPSTREAM_CHECK_MS || 10_000);
 
 const app = express();
 app.get('/health', (_req, res) => {
@@ -136,6 +138,13 @@ clientWss.on('connection', (socket) => {
 
 function connectUpstream() {
   const ws = new WebSocket(HL_WS_URL);
+  let lastUpstreamMessageAt = Date.now();
+  const staleTimer = setInterval(() => {
+    if (Date.now() - lastUpstreamMessageAt > UPSTREAM_STALE_MS) {
+      console.error(`[server] upstream stale for ${Date.now() - lastUpstreamMessageAt}ms, reconnecting`);
+      ws.terminate();
+    }
+  }, UPSTREAM_CHECK_MS);
 
   ws.on('open', () => {
     console.log('[server] connected to Hyperliquid ws');
@@ -146,6 +155,7 @@ function connectUpstream() {
   });
 
   ws.on('message', (buf) => {
+    lastUpstreamMessageAt = Date.now();
     try {
       const msg = JSON.parse(buf.toString());
       if (msg.channel === 'l2Book' && msg.data?.coin) {
@@ -168,6 +178,7 @@ function connectUpstream() {
   });
 
   ws.on('close', () => {
+    clearInterval(staleTimer);
     console.log('[server] upstream closed, reconnecting in 3s');
     setTimeout(connectUpstream, 3000);
   });
